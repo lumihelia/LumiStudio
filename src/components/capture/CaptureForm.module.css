@@ -2,6 +2,32 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--space-3);
+  box-shadow: 0 16px 48px var(--shadow);
+}
+
+.promptBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.kicker {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--muted-color);
+}
+
+.promptBlock h2 {
+  font-size: 1.45rem;
+}
+
+.promptBlock p:last-child {
+  color: var(--muted-color);
+  font-size: 0.98rem;
 }
 
 .field {
@@ -24,6 +50,7 @@
   padding: var(--space-2);
   font-size: 1rem;
   line-height: 1.6;
+  width: 100%;
 }
 
 .textInput:focus,
@@ -37,18 +64,19 @@
 }
 
 .typeRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-1);
-  flex-wrap: wrap;
 }
 
 .typeChip {
   border: 1px solid var(--border-color);
   background: var(--input-bg);
-  border-radius: var(--border-radius);
-  padding: 6px var(--space-2);
+  border-radius: 999px;
+  padding: var(--space-1);
   font-size: 0.88rem;
   color: var(--text-color);
+  min-height: var(--space-6);
 }
 
 .typeChipActive {
@@ -58,34 +86,50 @@
 }
 
 .actions {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: var(--space-2);
   margin-top: var(--space-1);
 }
 
-.submit {
+.submit,
+.secondaryAction {
   background: var(--primary-color);
   color: var(--white);
   border: none;
   border-radius: var(--border-radius);
   padding: var(--space-2) var(--space-4);
   font-size: 1rem;
+  min-height: var(--space-6);
 }
 
 .submit:hover {
   background: var(--primary-hover);
 }
 
-.submit:disabled {
+.secondaryAction {
+  background: var(--input-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.secondaryAction:hover:not(:disabled) {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.submit:disabled,
+.secondaryAction:disabled {
   background: var(--border-color);
   color: var(--muted-color);
   cursor: not-allowed;
+  border-color: var(--border-color);
 }
 
 .confirmation {
   font-size: 0.9rem;
   color: var(--accent-color);
+  min-height: var(--space-3);
 }
 
 .overlay {
@@ -132,6 +176,21 @@
   line-height: 1;
   color: var(--muted-color);
   padding: 0 var(--space-1);
+}
+
+@media (max-width: 560px) {
+  .form {
+    padding: var(--space-2);
+    box-shadow: none;
+  }
+
+  .typeRow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 .sheetClose:hover {

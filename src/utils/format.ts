@@ -25,6 +25,21 @@ export interface AgentRelation {
   to: string;
 }
 
+export interface AgentObject {
+  object_type:
+    | "material"
+    | "thought"
+    | "interpretation"
+    | "author_note"
+    | "claim"
+    | "question"
+    | "tension"
+    | "relation"
+    | "action";
+  text: string;
+  status?: string;
+}
+
 export interface AgentEntry {
   object_type: "material";
   title: string;
@@ -41,6 +56,7 @@ export interface AgentEntry {
   updated_at: string | null;
   markdown_url: string;
   json_url: string;
+  objects: AgentObject[];
 }
 
 export function toAgentShape(entry: Entry, allPublicEntries: Entry[]): AgentEntry {
@@ -66,7 +82,29 @@ export function toAgentShape(entry: Entry, allPublicEntries: Entry[]): AgentEntr
     updated_at: entry.processedAt,
     markdown_url: `/agent?format=markdown#${entry.id}`,
     json_url: `/agent?format=json#${entry.id}`,
+    objects: compactAgentObjects([
+      { object_type: "material", text: entry.origin, status: entry.status },
+      entry.captureNote
+        ? { object_type: "thought", text: entry.captureNote, status: "user-authored" }
+        : null,
+      entry.whatItSays
+        ? { object_type: "interpretation", text: entry.whatItSays, status: "draft" }
+        : null,
+      entry.relevanceToMe
+        ? { object_type: "author_note", text: entry.relevanceToMe, status: "user-confirmed" }
+        : null,
+      entry.judgmentStatement
+        ? { object_type: "claim", text: entry.judgmentStatement, status: "public" }
+        : null,
+      entry.nextAction
+        ? { object_type: "action", text: entry.nextAction, status: "next" }
+        : null,
+    ]),
   };
+}
+
+function compactAgentObjects(objects: Array<AgentObject | null>): AgentObject[] {
+  return objects.filter((object): object is AgentObject => Boolean(object));
 }
 
 export function toMarkdown(entries: Entry[]): string {
@@ -100,4 +138,28 @@ export function toMarkdown(entries: Entry[]): string {
       return lines.join("\n");
     })
     .join("\n\n---\n\n");
+}
+
+export function toFeedMock(entries: Entry[]): string {
+  return JSON.stringify(
+    {
+      version: "https://jsonfeed.org/version/1.1",
+      title: "LumiStudio Public Feed",
+      home_page_url: "/public",
+      feed_url: "/api/agent?format=feed",
+      items: entries.map((entry) => ({
+        id: entry.id,
+        url: `/public#${entry.id}`,
+        title: entry.title,
+        content_text: [entry.judgmentStatement, entry.whatItSays, entry.relevanceToMe]
+          .filter(Boolean)
+          .join("\n\n"),
+        tags: entry.tags,
+        date_modified: entry.processedAt ?? entry.capturedAt,
+        external_url: entry.origin.startsWith("http") ? entry.origin : undefined,
+      })),
+    },
+    null,
+    2
+  );
 }

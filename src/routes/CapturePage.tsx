@@ -7,8 +7,9 @@ export function CapturePage() {
   return (
     <PageShell>
       <div className={styles.heading}>
-        <h1>收进来</h1>
-        <p>看到什么、想到什么，先收进来，记一下为什么重要。回去电脑上再细想。</p>
+        <p className={styles.kicker}>轻量收集层</p>
+        <h1>先收进来。</h1>
+        <p>这里不做完整工作台。看到、想到、只记得一点线索，都先留下来，回到电脑上再捋。</p>
       </div>
       <CaptureForm />
       <RecentCapturesList />

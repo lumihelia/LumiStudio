@@ -39,6 +39,15 @@
   margin-bottom: var(--space-3);
 }
 
+.statement::before {
+  content: "公开判断";
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--muted-color);
+  margin-bottom: var(--space-1);
+}
+
 .relevance {
   font-size: 1rem;
   color: var(--text-color);
@@ -52,6 +61,20 @@
   color: var(--muted-color);
   margin-top: var(--space-3);
   margin-bottom: var(--space-1);
+}
+
+.sourceBlock {
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.sourceBlock p:last-child {
+  font-size: 0.9rem;
+  color: var(--text-color);
+  overflow-wrap: anywhere;
 }
 
 .whatItSays {

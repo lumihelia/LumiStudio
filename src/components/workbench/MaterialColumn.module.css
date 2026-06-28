@@ -1,7 +1,7 @@
 .column {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .label {
@@ -16,7 +16,6 @@
   gap: var(--space-3);
   border-bottom: 1px solid var(--border-color);
   padding-bottom: var(--space-1);
-  margin-bottom: var(--space-1);
 }
 
 .tab {
@@ -66,19 +65,49 @@
 }
 
 .title {
-  font-size: 1.25rem;
+  font-size: 1.55rem;
   font-weight: 600;
 }
 
-.origin {
-  font-size: 0.88rem;
-  color: var(--muted-color);
+.metaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
 }
 
-.note {
+.metaGrid span,
+.noteBlock span,
+.sectionLabel {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted-color);
+  margin-bottom: var(--space-1);
+}
+
+.metaGrid p,
+.metaGrid a {
+  font-size: 0.9rem;
+  color: var(--text-color);
+}
+
+.noteBlock {
+  background: rgba(255, 255, 255, 0.56);
+  border-radius: var(--border-radius);
+  padding: var(--space-2);
+}
+
+.noteBlock p {
   font-size: 0.95rem;
   color: var(--accent-color);
   font-style: italic;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
 }
 
 .body {
@@ -96,4 +125,10 @@
   color: var(--muted-color);
   font-size: 1rem;
   padding-top: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .metaGrid {
+    grid-template-columns: 1fr;
+  }
 }

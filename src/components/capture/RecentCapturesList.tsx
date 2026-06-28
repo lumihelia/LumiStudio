@@ -22,6 +22,7 @@ export function RecentCapturesList() {
         recent.map((entry) => (
           <div key={entry.id} className={styles.row}>
             <span className={styles.title}>{entry.title}</span>
+            <span className={styles.note}>{entry.captureNote || entry.whatItSays}</span>
             <span className={styles.meta}>
               {SOURCE_TYPE_LABEL[entry.sourceType]} · {formatRelative(entry.capturedAt)}
             </span>

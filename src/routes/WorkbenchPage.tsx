@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { InboxColumn } from "../components/workbench/InboxColumn";
 import { MaterialColumn } from "../components/workbench/MaterialColumn";
 import { JudgmentColumn } from "../components/workbench/JudgmentColumn";
@@ -19,11 +19,24 @@ export function WorkbenchPage() {
 
   const selectedEntry = entries.find((entry) => entry.id === selectedId) ?? null;
 
+  useEffect(() => {
+    if (sortedEntries.length === 0) {
+      if (selectedId) setSelectedId(null);
+      return;
+    }
+    if (!selectedId || !entries.some((entry) => entry.id === selectedId)) {
+      setSelectedId(sortedEntries[0].id);
+    }
+  }, [entries, selectedId, sortedEntries]);
+
   return (
     <div className={styles.shell}>
       <div className={styles.heading}>
-        <h1>认知操作台</h1>
-        <p>把收进来的东西，捋清楚它讲了什么、跟我有什么关系、接下来去哪儿。</p>
+        <div>
+          <p className={styles.kicker}>Desktop Studio</p>
+          <h1>认知操作台</h1>
+        </div>
+        <p>把收进来的东西，捋清楚它讲了什么、跟我有什么关系、最后流向哪里。</p>
       </div>
       <div className={styles.grid}>
         <div className={styles.columnScroll}>

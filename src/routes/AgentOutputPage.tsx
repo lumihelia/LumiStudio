@@ -2,15 +2,17 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageShell } from "../components/layout/PageShell";
 import { useAppState } from "../state/useAppState";
-import { toAgentShape, toMarkdown } from "../utils/format";
+import { toAgentShape, toFeedMock, toMarkdown } from "../utils/format";
 import styles from "./AgentOutputPage.module.css";
 
-type Format = "json" | "markdown";
+type Format = "json" | "markdown" | "feed";
 
 export function AgentOutputPage() {
   const { entries } = useAppState();
   const [searchParams] = useSearchParams();
-  const initialFormat = searchParams.get("format") === "markdown" ? "markdown" : "json";
+  const requestedFormat = searchParams.get("format");
+  const initialFormat =
+    requestedFormat === "markdown" || requestedFormat === "feed" ? requestedFormat : "json";
   const [format, setFormat] = useState<Format>(initialFormat);
 
   const publicEntries = useMemo(() => entries.filter((entry) => entry.isPublic), [entries]);
@@ -23,6 +25,7 @@ export function AgentOutputPage() {
         2
       );
     }
+    if (format === "feed") return toFeedMock(publicEntries);
     return toMarkdown(publicEntries);
   }, [format, publicEntries]);
 
@@ -37,6 +40,8 @@ export function AgentOutputPage() {
           <a href="/api/agent?format=json">/api/agent?format=json</a>
           {" · "}
           <a href="/api/agent?format=markdown">/api/agent?format=markdown</a>
+          {" · "}
+          <a href="/api/agent?format=feed">/api/agent?format=feed</a>
         </p>
       </div>
       <div className={styles.toggle}>
@@ -59,6 +64,17 @@ export function AgentOutputPage() {
           onClick={() => setFormat("markdown")}
         >
           Markdown
+        </button>
+        <button
+          type="button"
+          className={
+            format === "feed"
+              ? `${styles.toggleButton} ${styles.toggleButtonActive}`
+              : styles.toggleButton
+          }
+          onClick={() => setFormat("feed")}
+        >
+          Feed mock
         </button>
       </div>
       <pre className={styles.output}>{output}</pre>

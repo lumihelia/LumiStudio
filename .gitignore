@@ -26,3 +26,4 @@ dist-ssr
 # Local tool config / reference material, not project deliverables
 .claude/settings.local.json
 /Helia-Materials/
+/Context.txt

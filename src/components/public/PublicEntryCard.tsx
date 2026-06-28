@@ -11,7 +11,7 @@ interface PublicEntryCardProps {
 
 export function PublicEntryCard({ entry, relatedTitles }: PublicEntryCardProps) {
   return (
-    <article className={styles.entry}>
+    <article id={entry.id} className={styles.entry}>
       <p className={styles.context}>
         {entry.title} · {SOURCE_TYPE_LABEL[entry.sourceType]}
       </p>
@@ -25,14 +25,24 @@ export function PublicEntryCard({ entry, relatedTitles }: PublicEntryCardProps) 
         </div>
       )}
 
+      <div className={styles.sourceBlock}>
+        <p className={styles.sectionLabel}>原材料</p>
+        <p>
+          {SOURCE_TYPE_LABEL[entry.sourceType]} · {entry.origin}
+        </p>
+      </div>
+
       <p className={styles.statement}>{entry.judgmentStatement}</p>
       {entry.relevanceToMe && (
-        <p className={styles.relevance}>{entry.relevanceToMe}</p>
+        <>
+          <p className={styles.sectionLabel}>作者附注 / 编辑</p>
+          <p className={styles.relevance}>{entry.relevanceToMe}</p>
+        </>
       )}
 
       {entry.whatItSays && (
         <>
-          <p className={styles.sectionLabel}>这篇讲了什么</p>
+          <p className={styles.sectionLabel}>AI 帮我先整理了什么</p>
           <p className={styles.whatItSays}>{entry.whatItSays}</p>
         </>
       )}
@@ -69,6 +79,9 @@ export function PublicEntryCard({ entry, relatedTitles }: PublicEntryCardProps) 
         </Link>
         <Link className={styles.agentLink} to="/agent?format=json">
           JSON
+        </Link>
+        <Link className={styles.agentLink} to="/agent?format=feed">
+          Feed mock
         </Link>
       </div>
     </article>

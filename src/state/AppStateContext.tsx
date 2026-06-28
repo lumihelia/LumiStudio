@@ -42,14 +42,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     (action: Action) => {
       switch (action.type) {
         case "ADD_ENTRY": {
-          const { title, captureNote, sourceType } = action.payload;
+          const draft = action.payload;
           const newEntry: Omit<Entry, "id"> = {
-            sourceType,
-            title: title.trim() || "还没起标题的一条",
-            origin: "手机端收进来",
-            captureNote: captureNote.trim(),
-            whatItSays: "",
-            relevanceToMe: "",
+            sourceType: draft.sourceType,
+            title: draft.title.trim() || "还没起标题的一条",
+            origin: draft.origin,
+            captureNote: draft.captureNote.trim(),
+            whatItSays: draft.whatItSays,
+            relevanceToMe: draft.relevanceToMe,
             projectTag: null,
             judgmentStatement: "",
             nextAction: "",
@@ -57,8 +57,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             isPublic: false,
             capturedAt: new Date().toISOString(),
             processedAt: null,
-            tags: [],
-            coreBullets: [],
+            tags: draft.tags,
+            coreBullets: draft.coreBullets,
           };
           supabase
             .from("entries")

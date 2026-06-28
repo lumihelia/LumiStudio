@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { rowToEntry } from "../src/data/entryMapper";
 import type { EntryRow } from "../src/data/entryMapper";
-import { toAgentShape, toMarkdown } from "../src/utils/format";
+import { toAgentShape, toFeedMock, toMarkdown } from "../src/utils/format";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -27,11 +27,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const publicEntries = (data as EntryRow[]).map(rowToEntry);
-  const format = req.query.format === "markdown" ? "markdown" : "json";
+  const format =
+    req.query.format === "markdown" || req.query.format === "feed"
+      ? req.query.format
+      : "json";
 
   if (format === "markdown") {
     res.setHeader("Content-Type", "text/markdown; charset=utf-8");
     res.status(200).send(toMarkdown(publicEntries));
+    return;
+  }
+
+  if (format === "feed") {
+    res.setHeader("Content-Type", "application/feed+json; charset=utf-8");
+    res.status(200).send(toFeedMock(publicEntries));
     return;
   }
 

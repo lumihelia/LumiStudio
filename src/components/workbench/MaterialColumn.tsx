@@ -16,11 +16,13 @@ export function MaterialColumn({ entry }: MaterialColumnProps) {
   if (!entry) {
     return (
       <div className={styles.column}>
-        <p className={styles.label}>材料</p>
+        <p className={styles.label}>当前材料</p>
         <p className={styles.prompt}>选一条，看看它说了什么。</p>
       </div>
     );
   }
+
+  const originIsUrl = entry.origin.startsWith("http://") || entry.origin.startsWith("https://");
 
   return (
     <div className={styles.column}>
@@ -43,10 +45,24 @@ export function MaterialColumn({ entry }: MaterialColumnProps) {
 
       {tab === "material" ? (
         <>
+          <p className={styles.label}>当前材料</p>
           <h2 className={styles.title}>{entry.title}</h2>
-          <p className={styles.origin}>
-            {SOURCE_TYPE_LABEL[entry.sourceType]} · {entry.origin}
-          </p>
+          <div className={styles.metaGrid}>
+            <div>
+              <span>类型</span>
+              <p>{SOURCE_TYPE_LABEL[entry.sourceType]}</p>
+            </div>
+            <div>
+              <span>来源 / 原始线索</span>
+              {originIsUrl ? (
+                <a href={entry.origin} target="_blank" rel="noreferrer">
+                  打开原材料
+                </a>
+              ) : (
+                <p>{entry.origin}</p>
+              )}
+            </div>
+          </div>
           {entry.tags.length > 0 && (
             <div className={styles.tagRow}>
               {entry.tags.map((tag) => (
@@ -56,21 +72,38 @@ export function MaterialColumn({ entry }: MaterialColumnProps) {
               ))}
             </div>
           )}
-          {entry.captureNote && <p className={styles.note}>「{entry.captureNote}」</p>}
+          {entry.captureNote && (
+            <div className={styles.noteBlock}>
+              <span>用户当时想到</span>
+              <p>「{entry.captureNote}」</p>
+            </div>
+          )}
           {entry.whatItSays ? (
-            <p className={styles.body}>{entry.whatItSays}</p>
+            <section className={styles.section}>
+              <p className={styles.sectionLabel}>这篇讲了什么</p>
+              <p className={styles.body}>{entry.whatItSays}</p>
+            </section>
           ) : (
             <p className={styles.placeholder}>还没写它讲了什么，先去读一下原文。</p>
           )}
           {entry.coreBullets.length > 0 && (
-            <div className={styles.bullets}>
+            <section className={styles.bullets}>
               <p className={styles.bulletsLabel}>核心观点</p>
               <ul>
                 {entry.coreBullets.map((bullet) => (
                   <li key={bullet}>{bullet}</li>
                 ))}
               </ul>
-            </div>
+            </section>
+          )}
+          {entry.origin && (
+            <section className={styles.section}>
+              <p className={styles.sectionLabel}>模拟正文 / 字幕片段</p>
+              <p className={styles.body}>
+                {entry.whatItSays ||
+                  "真实正文或字幕会在未来由个人 agent 补齐。当前 demo 先保留来源、标题和用户当时的判断线索。"}
+              </p>
+            </section>
           )}
         </>
       ) : entry.judgmentStatement ? (

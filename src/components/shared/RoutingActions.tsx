@@ -17,6 +17,10 @@ export function RoutingActions({ entry, onDiscarded }: RoutingActionsProps) {
 
   return (
     <div className={styles.group}>
+      <div className={styles.header}>
+        <span>最后流向</span>
+        <p>关键动作需要你确认。</p>
+      </div>
       <div className={styles.grid}>
         <button
           type="button"
@@ -42,7 +46,7 @@ export function RoutingActions({ entry, onDiscarded }: RoutingActionsProps) {
             })
           }
         >
-          连接到项目里
+          接到项目里
         </button>
         <button
           type="button"
