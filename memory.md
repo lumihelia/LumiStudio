@@ -73,7 +73,7 @@ Product thesis (do not relitigate without reason): information only earns the ri
 - Vercel CLI cannot reach `api.vercel.com` from this machine's agent terminal — use the web dashboard for any future Vercel CLI-requiring task (env var changes, redeploys can also be done from the dashboard).
 - Carried over: no automated tests, `pitch.html` needs network for fonts, project picker doesn't dedupe near-identical names.
 - **Browser preview screenshot tool rendered tiny/broken images at desktop viewport sizes (e.g. 1280×900) during Round 5**, while mobile-width (375×812) screenshots worked fine and DOM-level checks (`innerText`, `scrollHeight`) were always correct. Likely a tool-side quirk, not an app bug — if it recurs, trust DOM inspection over the screenshot.
-- `tags`/`coreBullets` will silently read as empty arrays against any Supabase table missing those columns (graceful by design), but **writes will fail** until the `alter table` migration (see Round 5 above) has actually been run — if entries stop saving after a Round 5 pull, check this first.
+- ~~`tags`/`coreBullets` writes will fail until the `alter table` migration is run~~ — **confirmed done** by the user and verified live (queried `e2` via REST directly, `tags`/`core_bullets` populated correctly; also confirmed rendering on `/public`). No longer a risk.
 
 ## Architecture Audits
 
