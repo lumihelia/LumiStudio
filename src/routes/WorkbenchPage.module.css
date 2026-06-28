@@ -195,12 +195,35 @@
   margin: 0 auto;
 }
 
-.materialArticle h1 {
+.materialArticle h1,
+.titleInput {
   max-width: 720px;
   font-size: clamp(2rem, 3vw, 2.6rem);
   color: var(--primary-hover);
   margin-bottom: var(--space-3);
   letter-spacing: 0;
+}
+
+.titleInput {
+  display: block;
+  width: 100%;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius);
+  background: transparent;
+  padding: 2px var(--space-1);
+  margin-left: calc(var(--space-1) * -1);
+}
+
+.titleInput:hover,
+.titleInput:focus {
+  border-color: var(--border-color);
+  background: var(--white);
+}
+
+.titleInput::placeholder {
+  color: var(--placeholder-color);
 }
 
 .articleTools {
@@ -468,7 +491,8 @@
     padding: var(--space-3);
   }
 
-  .materialArticle h1 {
+  .materialArticle h1,
+  .titleInput {
     padding-right: var(--space-6);
   }
 }

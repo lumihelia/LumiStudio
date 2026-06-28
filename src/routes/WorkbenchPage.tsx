@@ -122,7 +122,13 @@ export function WorkbenchPage() {
               <button type="button" aria-label="保留到稍后">[]</button>
               <button type="button" aria-label="更多操作">...</button>
             </div>
-            <h1>{selectedEntry.title}</h1>
+            <input
+              className={styles.titleInput}
+              value={selectedEntry.title}
+              onChange={(event) => updateSelected({ title: event.target.value })}
+              aria-label="材料标题"
+              placeholder="给这条材料起个标题"
+            />
             <div className={styles.metaLine}>
               <span>{SOURCE_TYPE_LABEL[selectedEntry.sourceType]}</span>
               <span>{selectedEntry.origin || "未记录来源"}</span>
