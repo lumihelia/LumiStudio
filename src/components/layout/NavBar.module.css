@@ -1,0 +1,89 @@
+.bar {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.wordmark {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.links {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.link {
+  font-size: 0.95rem;
+  color: var(--muted-color);
+  padding: var(--space-1) 0;
+}
+
+.link:hover {
+  color: var(--text-color);
+}
+
+.linkActive {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .links {
+    gap: var(--space-2);
+  }
+  .link {
+    font-size: 0.85rem;
+  }
+}
+
+.reset {
+  background: none;
+  border: none;
+  font-size: 0.78rem;
+  color: var(--placeholder-color);
+  padding: var(--space-1) 0;
+  margin-left: var(--space-2);
+}
+
+.reset:hover {
+  color: var(--muted-color);
+}
+
+.resetConfirm {
+  font-size: 0.78rem;
+  color: var(--muted-color);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+}
+
+.resetConfirmYes {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-weight: 600;
+  font-size: 0.78rem;
+  padding: 0;
+}
+
+.resetConfirmNo {
+  background: none;
+  border: none;
+  color: var(--placeholder-color);
+  font-size: 0.78rem;
+  padding: 0;
+}

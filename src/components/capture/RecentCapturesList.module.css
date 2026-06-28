@@ -1,0 +1,35 @@
+.wrap {
+  margin-top: var(--space-8);
+}
+
+.label {
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  color: var(--muted-color);
+  margin-bottom: var(--space-2);
+}
+
+.row {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.title {
+  font-size: 0.98rem;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.meta {
+  font-size: 0.82rem;
+  color: var(--muted-color);
+}
+
+.empty {
+  color: var(--muted-color);
+  font-size: 0.95rem;
+}

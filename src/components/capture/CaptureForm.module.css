@@ -1,0 +1,89 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fieldLabel {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.textInput,
+.textarea {
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--space-2);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.textInput:focus,
+.textarea:focus {
+  border-color: var(--accent-color);
+}
+
+.textInput::placeholder,
+.textarea::placeholder {
+  color: var(--placeholder-color);
+}
+
+.typeRow {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.typeChip {
+  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  border-radius: var(--border-radius);
+  padding: 6px var(--space-2);
+  font-size: 0.88rem;
+  color: var(--text-color);
+}
+
+.typeChipActive {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.submit {
+  background: var(--primary-color);
+  color: var(--white);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: var(--space-2) var(--space-4);
+  font-size: 1rem;
+}
+
+.submit:hover {
+  background: var(--primary-hover);
+}
+
+.submit:disabled {
+  background: var(--border-color);
+  color: var(--muted-color);
+  cursor: not-allowed;
+}
+
+.confirmation {
+  font-size: 0.9rem;
+  color: var(--accent-color);
+}

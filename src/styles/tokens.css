@@ -1,0 +1,26 @@
+:root {
+  --text-color: #2C2C2C;
+  --primary-color: #4C436F;
+  --primary-hover: #3A3457;
+  --background-color: #F4F3F7;
+  --input-bg: #FAF9FC;
+  --border-color: #D4D0E0;
+  --placeholder-color: #9A93B3;
+  --muted-color: #9A93B3;
+  --accent-color: #6B5B8A;
+  --white: #FFFFFF;
+  --shadow: rgba(76, 67, 111, 0.08);
+  --border-radius: 12px;
+
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-6: 48px;
+  --space-8: 64px;
+  --space-12: 96px;
+
+  --font-heading: 'Playfair Display', serif;
+  --font-body: 'Source Serif Pro', serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+}

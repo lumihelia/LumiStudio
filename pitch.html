@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LumiStudio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Serif+Pro:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --text-color: #2C2C2C;
+    --primary-color: #4C436F;
+    --primary-hover: #3A3457;
+    --background-color: #F4F3F7;
+    --border-color: #D4D0E0;
+    --muted-color: #9A93B3;
+    --accent-color: #6B5B8A;
+    --white: #FFFFFF;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    background: var(--background-color);
+    color: var(--text-color);
+    font-family: 'Source Serif Pro', serif;
+  }
+
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 96px 24px 128px;
+  }
+
+  h1, h2 {
+    font-family: 'Playfair Display', serif;
+    margin: 0;
+  }
+
+  section {
+    margin-bottom: 96px;
+  }
+
+  .wordmark {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--muted-color);
+    margin-bottom: 64px;
+    letter-spacing: 0.02em;
+  }
+
+  .question {
+    font-size: 2rem;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--text-color);
+  }
+
+  .question .accent {
+    color: var(--primary-color);
+  }
+
+  .thesis {
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1.6;
+  }
+
+  .label {
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    color: var(--muted-color);
+    margin-bottom: 16px;
+  }
+
+  .loop {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 16px;
+    font-size: 1.3rem;
+    line-height: 1.8;
+  }
+
+  .loop .step {
+    font-weight: 600;
+  }
+
+  .loop .arrow {
+    color: var(--muted-color);
+    font-weight: 400;
+  }
+
+  .endings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 32px;
+    font-size: 1.15rem;
+  }
+
+  .endings .ending {
+    color: var(--text-color);
+  }
+
+  .endings .ending.public {
+    color: var(--primary-color);
+    font-weight: 600;
+  }
+
+  .surfaces {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .surface {
+    display: flex;
+    gap: 24px;
+    align-items: baseline;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 24px;
+  }
+
+  .surface:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .surface .who {
+    min-width: 96px;
+    font-size: 0.9rem;
+    color: var(--muted-color);
+  }
+
+  .surface .what {
+    font-size: 1.15rem;
+  }
+
+  .closing {
+    font-size: 1.4rem;
+    font-weight: 500;
+    line-height: 1.7;
+    color: var(--primary-color);
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <p class="wordmark">LumiStudio</p>
+
+  <section>
+    <p class="question">每条值得留下来的信息，<br />最后<span class="accent">流向了哪里</span>？</p>
+  </section>
+
+  <section>
+    <p class="label">产品判断</p>
+    <p class="thesis">信息只有被决定了去处，才算真正被留下——收藏不是终点，去处才是。</p>
+  </section>
+
+  <section>
+    <p class="label">核心循环</p>
+    <div class="loop">
+      <span class="step">收进来</span>
+      <span class="arrow">→</span>
+      <span class="step">记一下</span>
+      <span class="arrow">→</span>
+      <span class="step">在操作台里捋清楚</span>
+      <span class="arrow">→</span>
+      <span class="step">给它一个去处</span>
+    </div>
+  </section>
+
+  <section>
+    <p class="label">四个去处，没有第五个</p>
+    <div class="endings">
+      <span class="ending public">放到公开页</span>
+      <span class="ending">连接到项目里</span>
+      <span class="ending">先放着</span>
+      <span class="ending">不留了</span>
+    </div>
+  </section>
+
+  <section>
+    <p class="label">四个界面</p>
+    <div class="surfaces">
+      <div class="surface">
+        <span class="who">手机</span>
+        <span class="what">收进来，记一下，找原材料</span>
+      </div>
+      <div class="surface">
+        <span class="who">电脑</span>
+        <span class="what">认知操作台，把材料捋成判断</span>
+      </div>
+      <div class="surface">
+        <span class="who">人</span>
+        <span class="what">公开页，读判断，不读过程</span>
+      </div>
+      <div class="surface">
+        <span class="who">Agent</span>
+        <span class="what">JSON / Markdown，结构化的同一批判断</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="label">技术实现</p>
+    <div class="surfaces">
+      <div class="surface">
+        <span class="who">前端</span>
+        <span class="what">Vite + React，单页应用，无后端、无登录</span>
+      </div>
+      <div class="surface">
+        <span class="who">状态</span>
+        <span class="what">四个界面共享同一份状态，不是四个孤立的静态页</span>
+      </div>
+      <div class="surface">
+        <span class="who">数据</span>
+        <span class="what">mock 数据 + localStorage，刷新不丢，闭环可现场演示</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="closing">不是更好的收藏夹。<br />是一条信息真正被处理过的证明。</p>
+  </section>
+
+</main>
+</body>
+</html>

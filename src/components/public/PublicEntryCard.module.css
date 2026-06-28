@@ -1,0 +1,36 @@
+.entry {
+  padding-bottom: var(--space-8);
+  margin-bottom: var(--space-8);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.entry:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.context {
+  font-size: 0.85rem;
+  color: var(--muted-color);
+  margin-bottom: var(--space-2);
+}
+
+.statement {
+  font-size: 1.3rem;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--text-color);
+  margin-bottom: var(--space-3);
+}
+
+.relevance {
+  font-size: 1rem;
+  color: var(--text-color);
+  margin-bottom: var(--space-2);
+  max-width: 68ch;
+}
+
+.provenance {
+  font-size: 0.85rem;
+  color: var(--muted-color);
+}
