@@ -81,7 +81,7 @@ export async function computeRelations(
     return { available: false, cards: [] };
   }
 
-  const model = process.env.DEEPSEEK_MODEL || "deepseek-chat";
+  const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
   const { system, user } = buildDeepSeekPrompt(topic, entries, myContext);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
