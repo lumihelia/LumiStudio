@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { rowToEntry } from "../src/data/entryMapper";
 import type { EntryRow } from "../src/data/entryMapper";
-import { toAgentShape, toFeedMock, toMarkdown } from "../src/utils/format";
+import { toAgentShape, toRssFeed, toMarkdown } from "../src/utils/format";
 import { isPublishedEntry } from "../src/data/types";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -40,8 +40,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (format === "feed") {
-    res.setHeader("Content-Type", "application/feed+json; charset=utf-8");
-    res.status(200).send(toFeedMock(publicEntries));
+    res.setHeader("Content-Type", "application/rss+xml; charset=utf-8");
+    res.status(200).send(toRssFeed(publicEntries));
     return;
   }
 

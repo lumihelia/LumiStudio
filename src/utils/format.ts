@@ -140,26 +140,47 @@ export function toMarkdown(entries: Entry[]): string {
     .join("\n\n---\n\n");
 }
 
-export function toFeedMock(entries: Entry[]): string {
-  return JSON.stringify(
-    {
-      version: "https://jsonfeed.org/version/1.1",
-      title: "LumiStudio Public Feed",
-      home_page_url: "/public",
-      feed_url: "/api/agent?format=feed",
-      items: entries.map((entry) => ({
-        id: entry.id,
-        url: `/public#${entry.id}`,
-        title: entry.title,
-        content_text: [entry.judgmentStatement, entry.whatItSays, entry.relevanceToMe]
-          .filter(Boolean)
-          .join("\n\n"),
-        tags: entry.tags,
-        date_modified: entry.processedAt ?? entry.capturedAt,
-        external_url: entry.origin.startsWith("http") ? entry.origin : undefined,
-      })),
-    },
-    null,
-    2
-  );
+const SITE_URL = "https://studio.lumihelia.com";
+
+export function toRssFeed(entries: Entry[]): string {
+  const items = entries
+    .map((entry) => {
+      const description = [entry.judgmentStatement, entry.whatItSays, entry.relevanceToMe]
+        .filter(Boolean)
+        .join("\n\n");
+      const pubDate = new Date(entry.processedAt ?? entry.capturedAt).toUTCString();
+      return [
+        "<item>",
+        `<title>${escapeXml(entry.title)}</title>`,
+        `<link>${escapeXml(SITE_URL)}/public</link>`,
+        `<guid isPermaLink="false">${escapeXml(entry.id)}</guid>`,
+        `<pubDate>${pubDate}</pubDate>`,
+        `<description>${escapeXml(description || "这条公开对象还没有形成摘要。")}</description>`,
+        ...entry.tags.map((tag) => `<category>${escapeXml(tag)}</category>`),
+        "</item>",
+      ].join("\n");
+    })
+    .join("\n");
+
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<rss version="2.0">',
+    "<channel>",
+    "<title>LumiStudio Public Feed</title>",
+    `<link>${SITE_URL}/public</link>`,
+    "<description>LumiStudio 公开页的最新知识更新流。</description>",
+    "<language>zh-CN</language>",
+    items,
+    "</channel>",
+    "</rss>",
+  ].join("\n");
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
