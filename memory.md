@@ -2,7 +2,7 @@
 
 ## Current State
 
-LumiStudio has moved past the mock-data MVP stage. Current architecture: Vite + React SPA, **real Supabase Postgres backend** (no auth, single shared `entries` table, open RLS — explicitly a demo-only tradeoff), cross-device sync via **polling** (not Realtime — see Decisions for why), hosted in a **public GitHub repo** (`lumihelia/LumiStudio`), not yet deployed to Vercel (Round 3, next).
+LumiStudio is now **live and deployed**: https://lumi-studio-weld.vercel.app/. Architecture: Vite + React SPA, **real Supabase Postgres backend** (no auth, single shared `entries` table, open RLS — explicitly a demo-only tradeoff), cross-device sync via **polling** (not Realtime — see Decisions for why), hosted in a **public GitHub repo** (`lumihelia/LumiStudio`), deployed to **Vercel** with auto-deploy on push to `main` (env vars `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` set in the Vercel project). Round 4 (PC fixed-viewport shell + mobile bottom-sheet capture) is the only remaining planned work.
 
 Product thesis (do not relitigate without reason): information only earns the right to be called an asset once someone has decided where it ends up. The user's own framing: *"每条值得留下来的信息，最后到底流向了哪里？"*
 
@@ -23,6 +23,8 @@ Product thesis (do not relitigate without reason): information only earns the ri
 - `src/lib/localStorage.ts` deleted — Supabase is the single source of truth now, no client-side persistence layer.
 - Seeded the live table with the 7 demo entries via the existing 恢复成示例数据 reset button (which now writes to Supabase instead of localStorage).
 
+**Round 3 — Vercel deployment.** Deployed via the Vercel **web dashboard** (Import Git Repository → `lumihelia/LumiStudio`), not the CLI — the Vercel CLI (`vercel login`, and even `vercel whoami --token ...`) consistently failed to reach `api.vercel.com` from this machine's terminal (`SSL_ERROR_SYSCALL`/connection reset), while `github.com` and the `vercel.com` marketing domain worked fine over the same connection. Root cause not diagnosed (possibly a network/proxy rule specific to that one subdomain); the dashboard import path worked without issue. Live URL: **https://lumi-studio-weld.vercel.app/**. Env vars set in the Vercel project: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. Verified end-to-end on production: inserted a row via raw REST `fetch` (simulating a phone on a different network) and confirmed it appeared on the deployed site via polling, no manual refresh — same test as the local dev verification, repeated against prod.
+
 **Carried over from the mock-MVP build** (still true): 4 routes (`/`, `/workbench`, `/public`, `/agent`), design tokens (`src/styles/tokens.css`), Chinese natural-speech button vocabulary (收进来/记一下/连接到项目里/写成一段/放到公开页/先放着/不留了), the non-kanban 3-column workbench layout, `pitch.html`.
 
 ## Decisions
@@ -31,6 +33,8 @@ Product thesis (do not relitigate without reason): information only earns the ri
 - **No auth, open RLS.** Confirmed with user — single shared dataset for a one-day demo. Must not carry forward into any real/non-demo use without adding auth + scoped RLS.
 - **`id` column is `text`, not `uuid`.** Needed because seed entries use ids like `"e1"`–`"e7"`; new entries get a server-generated UUID string via `default gen_random_uuid()::text`, same column.
 - Decisions carried over from the mock-MVP build (still valid): single SPA over 4 static pages (for the closed-loop experience), 不留了 is a real delete not soft-delete, 3-column workbench uses spacing/typography not borders (avoids kanban look), simple chip-based project picker.
+- **Investigated but did not fix the Realtime issue further**: compared against the user's other project (`lumihelia/housewarming-guestbook`, a single-file Alpine.js + Supabase site) which uses the *identical* `channel().on('postgres_changes', ...).subscribe()` pattern against a *different* Supabase project, and its Realtime works. Confirms the bug is specific to this project's Supabase instance/config, not our client code — but the actual root cause in that instance was never found. Not worth re-investigating unless a future session has time and wants true sub-second sync; polling is the accepted permanent-for-now solution.
+- **Deployed via Vercel's web dashboard, not the CLI** — the CLI could not reach `api.vercel.com` from this machine's agent terminal (network-level connection resets), even with a personal access token. The dashboard "Import Git Repository" flow worked without issue.
 
 ## Verification
 
@@ -45,7 +49,9 @@ Product thesis (do not relitigate without reason): information only earns the ri
 - **`preview_click` (the MCP browser tool) was unreliable on the capture form's submit button** during this session — reported success but didn't actually trigger the click/submit; switching to `element.click()` via `preview_eval` worked reliably every time. Worth remembering for future verification in this project: prefer eval-based clicks over `preview_click` for form submissions.
 - Realtime (`postgres_changes`) does not work in this Supabase project for reasons never fully diagnosed (publication + RLS + Inspector all looked correct). If a future session wants true sub-second sync, this would need a fresh investigation — possibly try Supabase's newer "Broadcast from database" pattern instead of the deprecated-leaning `postgres_changes` path.
 - No auth / open RLS — by design for today, must change before any real use.
-- Carried over: no automated tests, NavBar shows all 4 routes at every viewport, `pitch.html` needs network for fonts, project picker doesn't dedupe near-identical names.
+- **NavBar wraps awkwardly at 375px** now that the 恢复成示例数据 link was added (5 items including it, each nav label wraps to two lines on narrow phones). Cosmetic, functional. Round 4's mobile rework should resolve this as a side effect (the reset link likely needs to move out of the always-visible nav on mobile).
+- Vercel CLI cannot reach `api.vercel.com` from this machine's agent terminal — use the web dashboard for any future Vercel CLI-requiring task (env var changes, redeploys can also be done from the dashboard).
+- Carried over: no automated tests, `pitch.html` needs network for fonts, project picker doesn't dedupe near-identical names.
 
 ## Architecture Audits
 
@@ -53,7 +59,6 @@ None yet — still effectively prototype stage (now with a real DB, but single-u
 
 ## Next Steps
 
-1. **Round 3 (next): Vercel deployment.** Connect the GitHub repo to Vercel for auto-deploy on push, set `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` as Vercel env vars, verify the live URL works cross-device (phone + desktop, same as the local polling test above).
-2. **Round 4: UI rework.** PC `/workbench` needs a fixed-viewport app-shell (no outer-page scroll, per user's reference mockups) instead of the current scrolling layout; mobile `/` capture flow should become a bottom-sheet/modal interaction instead of an inline form. Keep all current colors/fonts — structural/interaction patterns only, from reference images already reviewed with the user.
-3. Decided against: native iOS Share Extension and iOS Shortcuts (see plan file for the full reasoning) — the mobile web capture link + polling sync is the agreed cross-device mechanism for the demo.
-4. Commit after this round (per standing instruction), then proceed to Round 3.
+1. **Round 4 (only remaining round): UI rework.** PC `/workbench` needs a fixed-viewport app-shell (no outer-page scroll, per user's reference mockups) instead of the current scrolling layout; mobile `/` capture flow should become a bottom-sheet/modal interaction instead of an inline form. Keep all current colors/fonts — structural/interaction patterns only, from reference images already reviewed with the user. Also a good opportunity to fix the NavBar wrapping issue noted above.
+2. Decided against: native iOS Share Extension and iOS Shortcuts (see plan file for the full reasoning) — the mobile web capture link + polling sync is the agreed cross-device mechanism for the demo, already live in production.
+3. Commit after Round 4 (per standing instruction). Vercel auto-deploys on push to `main`, so no separate deploy step needed once Round 4 lands.
