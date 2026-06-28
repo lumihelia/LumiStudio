@@ -101,43 +101,50 @@ async function draftWithGemini(
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
 
-  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
 
   try {
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": key,
-      },
-      body: JSON.stringify({
-        model,
-        input: buildGeminiPrompt(input, metadata, fallbackDraft),
-        response_format: {
-          type: "text",
-          mime_type: "application/json",
-          schema: {
-            type: "object",
-            properties: {
-              title: { type: "string" },
-              whatItSays: { type: "string" },
-              relevanceToMe: { type: "string" },
-              tags: { type: "array", items: { type: "string" } },
-              coreBullets: { type: "array", items: { type: "string" } },
-            },
-            required: ["title", "whatItSays", "relevanceToMe", "tags", "coreBullets"],
-          },
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": key,
         },
-      }),
-    });
+        body: JSON.stringify({
+          contents: [
+            { role: "user", parts: [{ text: buildGeminiPrompt(input, metadata, fallbackDraft) }] },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                title: { type: "STRING" },
+                whatItSays: { type: "STRING" },
+                relevanceToMe: { type: "STRING" },
+                tags: { type: "ARRAY", items: { type: "STRING" } },
+                coreBullets: { type: "ARRAY", items: { type: "STRING" } },
+              },
+              required: ["title", "whatItSays", "relevanceToMe", "tags", "coreBullets"],
+            },
+          },
+        }),
+      }
+    );
 
-    if (!response.ok) return null;
-    const data = (await response.json()) as GeminiResponse | Partial<EntryDraft>;
-    const text = "output_text" in data ? data.output_text ?? "" : "";
-    const parsed = text ? (JSON.parse(text) as Partial<EntryDraft>) : (data as Partial<EntryDraft>);
+    if (!response.ok) {
+      console.error("Gemini draft failed", response.status, await response.text());
+      return null;
+    }
+    const data = (await response.json()) as GeminiGenerateContentResponse;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    if (!text) return null;
+    const parsed = JSON.parse(text) as Partial<EntryDraft>;
     return normalizeGeminiDraft(parsed, fallbackDraft);
   } catch (error) {
     console.error("Gemini draft failed", error);
@@ -192,8 +199,12 @@ function cleanList(
   return cleaned.length > 0 ? Array.from(new Set(cleaned)) : fallback;
 }
 
-interface GeminiResponse {
-  output_text?: string;
+interface GeminiGenerateContentResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
 }
 
 async function fetchPageMetadata(url: string, input: CaptureInput): Promise<ExtractedMetadata> {
@@ -298,11 +309,19 @@ function attr(tag: string, name: string): string {
 function decodeHtml(value: string): string {
   return value
     .replace(/&nbsp;/g, " ")
+    .replace(/&mdash;/g, "—")
+    .replace(/&ndash;/g, "–")
+    .replace(/&hellip;/g, "…")
+    .replace(/&ldquo;/g, "“")
+    .replace(/&rdquo;/g, "”")
+    .replace(/&lsquo;/g, "‘")
+    .replace(/&rsquo;/g, "’")
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
     .replace(/\s+/g, " ")
     .trim();
 }
