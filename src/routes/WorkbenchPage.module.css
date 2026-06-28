@@ -58,4 +58,17 @@
     overflow-y: auto;
     padding-right: var(--space-1);
   }
+
+  .columnScroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .columnScroll::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+  }
+
+  .columnScroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }

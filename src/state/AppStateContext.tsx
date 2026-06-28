@@ -2,7 +2,6 @@ import { createContext, useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Entry } from "../data/types";
 import type { Action } from "./actions";
-import { SEED_ENTRIES } from "../data/seedEntries";
 import { supabase } from "../lib/supabaseClient";
 import { rowToEntry, entryToRow } from "../data/entryMapper";
 import type { EntryRow } from "../data/entryMapper";
@@ -112,25 +111,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             });
           break;
         }
-        case "RESET_TO_SEED": {
-          (async () => {
-            const { error: deleteError } = await supabase
-              .from("entries")
-              .delete()
-              .not("id", "is", null);
-            if (deleteError) {
-              console.error("RESET_TO_SEED delete failed", deleteError);
-              return;
-            }
-            const { error: insertError } = await supabase
-              .from("entries")
-              .insert(SEED_ENTRIES.map((entry) => entryToRow(entry)));
-            if (insertError) {
-              console.error("RESET_TO_SEED insert failed", insertError);
-              return;
-            }
-            refetch();
-          })();
+        case "CLEAR_ALL": {
+          supabase
+            .from("entries")
+            .delete()
+            .not("id", "is", null)
+            .then(({ error }) => {
+              if (error) console.error("CLEAR_ALL failed", error);
+              else refetch();
+            });
           break;
         }
       }

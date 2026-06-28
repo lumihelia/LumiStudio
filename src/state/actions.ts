@@ -19,4 +19,4 @@ export type Action =
     }
   | { type: "ROUTE_ENTRY"; payload: { id: string; destination: RouteDestination } }
   | { type: "DISCARD_ENTRY"; payload: { id: string } }
-  | { type: "RESET_TO_SEED" };
+  | { type: "CLEAR_ALL" };

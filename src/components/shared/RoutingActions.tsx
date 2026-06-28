@@ -17,7 +17,7 @@ export function RoutingActions({ entry, onDiscarded }: RoutingActionsProps) {
 
   return (
     <div className={styles.group}>
-      <div className={styles.row}>
+      <div className={styles.grid}>
         <button
           type="button"
           className={styles.primary}
@@ -56,19 +56,9 @@ export function RoutingActions({ entry, onDiscarded }: RoutingActionsProps) {
         >
           先放着
         </button>
-      </div>
 
-      {!canPublish && (
-        <p className={styles.hint}>先写一段判断，才能放到公开页</p>
-      )}
-      {!canConnect && (
-        <p className={styles.hint}>先选一个项目，才能连接到项目里</p>
-      )}
-
-      <div className={styles.discardRow}>
         {confirmingDiscard ? (
-          <>
-            <span className={styles.confirmText}>这会把它从工作台里删掉，确定吗？</span>
+          <div className={styles.discardConfirm}>
             <button
               type="button"
               className={styles.confirmYes}
@@ -86,17 +76,24 @@ export function RoutingActions({ entry, onDiscarded }: RoutingActionsProps) {
             >
               再想想
             </button>
-          </>
+          </div>
         ) : (
           <button
             type="button"
-            className={styles.discardLink}
+            className={styles.discard}
             onClick={() => setConfirmingDiscard(true)}
           >
             不留了
           </button>
         )}
       </div>
+
+      {(!canPublish || !canConnect) && (
+        <div className={styles.hints}>
+          {!canPublish && <p className={styles.hint}>先写一段判断，才能放到公开页</p>}
+          {!canConnect && <p className={styles.hint}>先选一个项目，才能连接到项目里</p>}
+        </div>
+      )}
     </div>
   );
 }

@@ -4,15 +4,15 @@ import { useAppState } from "../../state/useAppState";
 import styles from "./NavBar.module.css";
 
 const LINKS = [
-  { to: "/", label: "收进来" },
-  { to: "/workbench", label: "操作台" },
-  { to: "/public", label: "公开页" },
-  { to: "/agent", label: "给 agent 看" },
+  { to: "/", label: "收进来", desktopOnly: false },
+  { to: "/workbench", label: "操作台", desktopOnly: true },
+  { to: "/public", label: "公开页", desktopOnly: false },
+  { to: "/agent", label: "给 agent 看", desktopOnly: true },
 ];
 
 export function NavBar() {
   const { dispatch } = useAppState();
-  const [confirmingReset, setConfirmingReset] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   return (
     <header className={styles.bar}>
@@ -23,22 +23,23 @@ export function NavBar() {
             <NavLink
               key={link.to}
               to={link.to}
-              className={({ isActive }) =>
-                isActive ? `${styles.link} ${styles.linkActive}` : styles.link
-              }
+              className={({ isActive }) => {
+                const base = link.desktopOnly ? `${styles.link} ${styles.desktopOnly}` : styles.link;
+                return isActive ? `${base} ${styles.linkActive}` : base;
+              }}
             >
               {link.label}
             </NavLink>
           ))}
-          {confirmingReset ? (
+          {confirmingClear ? (
             <span className={styles.resetConfirm}>
-              清空现在的改动？
+              清空所有材料？这会删掉你收进来的全部东西。
               <button
                 type="button"
                 className={styles.resetConfirmYes}
                 onClick={() => {
-                  dispatch({ type: "RESET_TO_SEED" });
-                  setConfirmingReset(false);
+                  dispatch({ type: "CLEAR_ALL" });
+                  setConfirmingClear(false);
                 }}
               >
                 确定
@@ -46,7 +47,7 @@ export function NavBar() {
               <button
                 type="button"
                 className={styles.resetConfirmNo}
-                onClick={() => setConfirmingReset(false)}
+                onClick={() => setConfirmingClear(false)}
               >
                 算了
               </button>
@@ -55,9 +56,9 @@ export function NavBar() {
             <button
               type="button"
               className={styles.reset}
-              onClick={() => setConfirmingReset(true)}
+              onClick={() => setConfirmingClear(true)}
             >
-              恢复成示例数据
+              清空全部
             </button>
           )}
         </nav>
