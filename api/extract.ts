@@ -7,7 +7,7 @@ import {
   type CaptureInput,
   type EntryDraft,
   type ExtractedMetadata,
-} from "../src/utils/extraction";
+} from "../src/utils/extraction.ts";
 
 const MAX_INPUT_LENGTH = 5000;
 const MAX_PAGE_LENGTH = 900000;
@@ -35,6 +35,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const { draft, mode } = await extractDraftForInput(input);
+
+  res.status(200).json({
+    draft,
+    extraction: { mode },
+  });
+}
+
+export async function extractDraftForInput(input: CaptureInput): Promise<{
+  draft: EntryDraft;
+  mode: "gemini" | "metadata" | "fallback";
+}> {
   const url = extractFirstUrl(input.rawInput);
   let metadata: ExtractedMetadata = {};
   let mode: "gemini" | "metadata" | "fallback" = "fallback";
@@ -55,10 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     mode = "gemini";
   }
 
-  res.status(200).json({
-    draft,
-    extraction: { mode },
-  });
+  return { draft, mode };
 }
 
 function parseInput(body: unknown): CaptureInput | null {

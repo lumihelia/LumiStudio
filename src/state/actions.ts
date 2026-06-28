@@ -11,6 +11,7 @@ export type Action =
       type: "UPDATE_JUDGMENT";
       payload: {
         id: string;
+        captureNote?: string;
         whatItSays?: string;
         relevanceToMe?: string;
         projectTag?: string | null;

@@ -73,6 +73,19 @@ Product thesis (do not relitigate without reason): information only earns the ri
   - 找原材料: shows two candidate material cards with "匹配理由", "就是这个", and "再找找"; confirming a candidate creates a real entry through the same structured capture path.
 - `NavBar` is hidden below 640px so mobile does not show the desktop web nav above the phone-native tab experience.
 
+**Round 10 — PC UI rebuild from final references.**
+- The user supplied final PC UI references for 工作台 / 引力台 / 公开页 / Feed and clarified that PC and mobile should be almost separate; only the PC 收进来 route can keep the existing capture form shape. No git commit/push should be done by Codex in this round.
+- Desktop `NavBar` now matches the PC shell direction: LumiLens wordmark + tagline, four primary PC tabs (`工作台`, `引力台`, `公开页`, `Feed`), with `/` still kept as the capture entry via the brand link.
+- `WorkbenchPage` was rebuilt into a three-pane PC surface: left "今天收进来的" material list, center material reading/summary surface, right "我的处理" cards for 刚刚想到 / 和我有什么关系 / 它还牵到了什么 / 下一步. It still writes to the existing `entries` row model through `UPDATE_JUDGMENT` and `ROUTE_ENTRY`; no mock data was added.
+- New `GravityPage` (`/gravity`) added as the first PC "引力台" seed. It derives topics from existing entry tags/project tags, groups relations into 相似的想法 / 支撑它的材料 / 冲突或张力 / 延伸出去的问题, and uses the right inspector for relation handling. It does not pretend to have a real graph engine yet.
+- `PublicPage` was rebuilt into the reference three-pane public reading page: recent public list, article body separating source summary / core points / author note / related claims, and right-side page metadata/export/object-type panels.
+- `AgentOutputPage` is now the PC `Feed` surface: subscription/source sidebar, central public-object update cards, and right-side Feed explanation/export/stat panels. Machine-readable endpoints remain `/api/agent?format=json|markdown|feed`.
+- Added a semantic `--success-color` token for published status instead of hardcoding green in page CSS.
+- Follow-up correction: the left-bottom pseudo user card (`Rex / Pro 计划`) was removed from PC sidebars. The left-bottom slot is now the settings entry for `我的上下文`, not a user profile card.
+- Added `SettingsPage` at `/settings` for `我的上下文` / My Context. It is a local structured configuration page with 8 blocks: identity, current_projects, active_questions, existing_claims, output_goals, voice, privacy_rules, and intake_rules. It supports editing, saving to localStorage, downloading a Markdown template, and importing TXT/MD/JSON.
+- Mobile capture was simplified per user correction: mobile now only has the 收进来 tab, and capture modes are only 链接 / 文本. 公共阅读、找原材料、语音线索 were removed from the mobile experience.
+- Local Vite dev now includes a `/api/extract` middleware that reuses the same extraction path as Vercel, so local capture can parse URL metadata instead of falling back to storing only the URL. Production still uses the Vercel serverless function, and Gemini drafting works when `GEMINI_API_KEY` is set in Vercel.
+
 **Carried over from the mock-MVP build** (still true): 4 routes (`/`, `/workbench`, `/public`, `/agent`), design tokens (`src/styles/tokens.css`), Chinese natural-speech button vocabulary (收进来/记一下/连接到项目里/写成一段/放到公开页/先放着/不留了), the non-kanban 3-column workbench layout, `pitch.html`.
 
 ## Decisions
@@ -92,6 +105,8 @@ Product thesis (do not relitigate without reason): information only earns the ri
 - Round 8: `npx tsc -b --noEmit`, `npm run lint`, `npm run build`, and separate API typecheck (`npx tsc --ignoreConfig --noEmit --target es2023 --module esnext --moduleResolution bundler --types node --skipLibCheck api/extract.ts api/agent.ts`) all passed.
 - Round 8 visual check: opened local dev server at `127.0.0.1:5173` in Chrome and inspected capture page + desktop workbench via Computer Use. Verified visible labels/surfaces: 轻量收集层, Mobile Capture, 今天收进来的, 当前材料, 我的处理, 它讲了什么, 它还牵到了什么, 最后流向. Headless Playwright failed due macOS Mach port permission, so visual verification used the real browser instead.
 - Round 9: `npx tsc -b --noEmit`, `npm run lint`, and `npm run build` passed. Mobile screenshot automation was not available: Chromium headless is blocked by macOS Mach port permission and WebKit is not installed. The mobile branch is implemented via CSS breakpoint and should be checked by the user on an actual phone or browser responsive mode before the demo.
+- Round 10: `npx tsc -b --noEmit`, `npm run lint`, and `npm run build` passed. A local Vite preview was started on `http://127.0.0.1:5174/`, but the agent sandbox could not `curl` local ports and the system rejected automatic browser-opening due the current usage/approval limit, so visual verification still needs the user to inspect the local preview manually.
+- Round 10 follow-up: after adding My Context, mobile simplification, and local `/api/extract` middleware, `npx tsc -b --noEmit`, `npm run lint`, and `npm run build` passed again.
 - Insert/update/delete through the UI confirmed via direct Supabase REST queries (not just trusting the UI) — caught a real bug this way (see Known Issues: flaky `preview_click`).
 - Cross-device sync verified by inserting a row via raw REST `fetch` (simulating a phone) and confirming the open app tab displayed it via polling alone, no manual refresh, no action in that tab.
 - Reset-to-seed verified against the live Supabase table (not localStorage) — confirmed row count returns to exactly 7 after delete-all + re-insert-seed.
@@ -113,6 +128,8 @@ Product thesis (do not relitigate without reason): information only earns the ri
 - `api/extract.ts` cannot be fully exercised under plain `npm run dev` because Vite does not execute Vercel serverless functions locally. Local capture falls back safely; production extraction requires Vercel deployment. If Gemini is enabled, the user must add `GEMINI_API_KEY` (and optionally `GEMINI_MODEL`) in Vercel Project Settings.
 - Headless Playwright launch failed in this desktop session due macOS permission (`MachPortRendezvousServer ... Permission denied`). Use Computer Use or the user's own browser for visual verification if that recurs.
 - Mobile `/` now has a separate three-tab experience below 640px. PC examples that arrive later should not overwrite this mobile-specific structure; build PC tabs separately.
+- Round 10 PC UI is built and type/lint/build verified, but not visually inspected by the agent because no usable browser window was available and automatic opening was rejected by the approval layer. The user should inspect `/workbench`, `/gravity`, `/public`, and `/agent` locally before pushing/deploying.
+- Because `vite.config.ts` changed to add a local `/api/extract` middleware, any already-running `npm run dev` server must be restarted before local URL extraction testing reflects the new middleware.
 
 ## Architecture Audits
 
@@ -120,9 +137,10 @@ None yet — still effectively prototype stage (now with a real DB, but single-u
 
 ## Next Steps
 
-Rounds 1-8 are done locally; Round 8 still needs commit/push/deploy if not already done in the active session. Before the demo:
+Rounds 1-10 are done locally; Round 10 intentionally has no Codex git commit/push because the user asked to handle git themselves. Before the demo:
 1. Add `GEMINI_API_KEY` in Vercel only if the user wants live model drafting; otherwise the extraction fallback remains safe.
 2. Use the live site to capture 2-3 real materials and process at least one through `/workbench` into `/public`; do not use mock data.
 3. Ask the user to verify `https://studio.lumihelia.com` after Vercel deploy because this agent environment cannot reliably reach `*.vercel.app`.
 4. No auth / open RLS is still the live posture — flag this before any use beyond today's demo.
 5. Do not re-add mock/seed data or a "restore demo data" button — that was explicitly removed in Round 6 at the user's request. If a future session needs test fixtures for local dev, ask first rather than recreating `seedEntries.ts`.
+6. User should visually check the PC rebuilt pages at local preview (`/workbench`, `/gravity`, `/public`, `/agent`) before git push/deploy.

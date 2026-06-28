@@ -1,5 +1,5 @@
-import type { SourceType } from "../data/types";
-import { SOURCE_TYPE_LABEL } from "../data/types";
+import type { SourceType } from "../data/types.ts";
+import { SOURCE_TYPE_LABEL } from "../data/types.ts";
 
 export interface CaptureInput {
   rawInput: string;
