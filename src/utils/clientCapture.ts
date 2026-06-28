@@ -1,22 +1,12 @@
 import {
   createFallbackDraft,
   type CaptureInput,
-  type CaptureMyContext,
   type EntryDraft,
 } from "./extraction";
-import { loadMyContext } from "./myContext";
-
-function currentMyContext(): CaptureMyContext {
-  const context = loadMyContext();
-  return {
-    currentProjects: context.current_projects,
-    activeQuestions: context.active_questions,
-    existingClaims: context.existing_claims,
-  };
-}
+import { loadMyContext, toCaptureMyContext } from "./myContext";
 
 export async function getEntryDraft(input: CaptureInput): Promise<EntryDraft> {
-  const payload: CaptureInput = { ...input, myContext: currentMyContext() };
+  const payload: CaptureInput = { ...input, myContext: toCaptureMyContext(loadMyContext()) };
   try {
     const response = await fetch("/api/extract", {
       method: "POST",

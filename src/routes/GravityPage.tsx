@@ -1,11 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Entry } from "../data/types";
 import { useAppState } from "../state/useAppState";
-import { formatRelative } from "../utils/format";
+import { loadMyContext, toCaptureMyContext } from "../utils/myContext";
+import {
+  buildHonestFallback,
+  type RelationCard,
+  type RelationEntryInput,
+  type RelationKind,
+} from "../utils/relations";
 import styles from "./GravityPage.module.css";
-
-type RelationKind = "相似的想法" | "支撑它的材料" | "冲突 / 张力" | "延伸出去的问题";
 
 interface TopicSummary {
   name: string;
@@ -13,27 +17,83 @@ interface TopicSummary {
   description: string;
 }
 
-interface RelationCardModel {
-  id: string;
-  kind: RelationKind;
-  title: string;
-  description: string;
-  meta: string;
-  sourceEntry?: Entry;
-}
+const RELATION_KINDS: RelationKind[] = ["相似的想法", "支撑它的材料", "冲突 / 张力", "延伸出去的问题"];
+const MAX_ENTRIES_PER_CALL = 8;
 
 export function GravityPage() {
   const { entries, dispatch } = useAppState();
+  const entriesRef = useRef<Entry[]>(entries);
+  entriesRef.current = entries;
+
   const topics = useMemo(() => buildTopics(entries), [entries]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const activeTopic = selectedTopic ?? topics[0]?.name ?? "等待主题";
-  const relations = useMemo(
-    () => buildRelations(activeTopic, entries),
-    [activeTopic, entries]
-  );
+
+  const [relationState, setRelationState] = useState<{
+    topic: string;
+    cards: RelationCard[];
+    loading: boolean;
+    available: boolean;
+  }>({ topic: "", cards: [], loading: false, available: true });
+  const cacheRef = useRef<Map<string, { cards: RelationCard[]; available: boolean }>>(new Map());
+
+  useEffect(() => {
+    if (!activeTopic || activeTopic === "等待主题") return;
+
+    const cached = cacheRef.current.get(activeTopic);
+    if (cached) {
+      setRelationState({ topic: activeTopic, loading: false, ...cached });
+      return;
+    }
+
+    const topicEntries = selectTopicEntries(activeTopic, entriesRef.current);
+    if (topicEntries.length === 0) {
+      setRelationState({ topic: activeTopic, cards: [], loading: false, available: true });
+      return;
+    }
+
+    let cancelled = false;
+    setRelationState({ topic: activeTopic, cards: [], loading: true, available: true });
+
+    const payload = {
+      topic: activeTopic,
+      entries: topicEntries.map(toRelationEntryInput),
+      myContext: toCaptureMyContext(loadMyContext()),
+    };
+
+    fetch("/api/relations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then((response) => (response.ok ? response.json() : Promise.reject(response)))
+      .then((result: { available: boolean; cards: RelationCard[] }) => {
+        if (cancelled) return;
+        const resolved = result.available
+          ? result
+          : { available: false, cards: buildHonestFallback(payload.entries) };
+        cacheRef.current.set(activeTopic, resolved);
+        setRelationState({ topic: activeTopic, loading: false, ...resolved });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const fallback = { available: false, cards: buildHonestFallback(payload.entries) };
+        cacheRef.current.set(activeTopic, fallback);
+        setRelationState({ topic: activeTopic, loading: false, ...fallback });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTopic]);
+
+  const relations = relationState.topic === activeTopic ? relationState.cards : [];
   const [selectedRelationId, setSelectedRelationId] = useState<string | null>(null);
   const selectedRelation =
     relations.find((relation) => relation.id === selectedRelationId) ?? relations[0] ?? null;
+  const sourceEntry = selectedRelation?.entryId
+    ? entries.find((entry) => entry.id === selectedRelation.entryId)
+    : undefined;
 
   const grouped = groupRelations(relations);
 
@@ -87,7 +147,13 @@ export function GravityPage() {
         <div className={styles.mapHeader}>
           <div>
             <h1>{activeTopic}</h1>
-            <p>探索与“{activeTopic}”相关的想法、张力与支撑材料。</p>
+            <p>
+              {relationState.loading
+                ? "正在判断这些材料之间的真实关系…"
+                : !relationState.available
+                  ? "还没有连接关系判断模型，下面先按标签/项目诚实分组，不代表已经判断出真实关系。"
+                  : `探索与"${activeTopic}"相关的想法、张力与支撑材料。`}
+            </p>
           </div>
           <div className={styles.articleTools}>
             <button type="button" aria-label="保留到稍后">[]</button>
@@ -96,45 +162,41 @@ export function GravityPage() {
         </div>
 
         <div className={styles.laneStack}>
-          {(["相似的想法", "支撑它的材料", "冲突 / 张力", "延伸出去的问题"] as RelationKind[]).map(
-            (kind, index) => (
-              <section
-                key={kind}
-                className={
-                  kind === "延伸出去的问题"
-                    ? `${styles.lane} ${styles.questionLane}`
-                    : styles.lane
-                }
-              >
-                <div className={styles.laneTitle}>
-                  <span>{index + 1}</span>
-                  <h2>{kind}</h2>
-                </div>
-                <div className={styles.cardRail}>
-                  {(grouped[kind] ?? []).map((relation) => (
-                    <button
-                      type="button"
-                      key={relation.id}
-                      className={
-                        relation.id === selectedRelation?.id
-                          ? `${styles.relationCard} ${styles.relationCardActive}`
-                          : styles.relationCard
-                      }
-                      onClick={() => setSelectedRelationId(relation.id)}
-                    >
-                      <strong>{relation.title}</strong>
-                      <span>{relation.description}</span>
-                      <small>{relation.meta}</small>
-                    </button>
-                  ))}
-                  <button type="button" className={styles.addCard}>
-                    <span>+</span>
-                    {kind === "冲突 / 张力" ? "发现更多张力" : kind === "延伸出去的问题" ? "提出新问题" : "添加更多"}
+          {RELATION_KINDS.map((kind, index) => (
+            <section
+              key={kind}
+              className={
+                kind === "延伸出去的问题" ? `${styles.lane} ${styles.questionLane}` : styles.lane
+              }
+            >
+              <div className={styles.laneTitle}>
+                <span>{index + 1}</span>
+                <h2>{kind}</h2>
+              </div>
+              <div className={styles.cardRail}>
+                {(grouped[kind] ?? []).map((relation) => (
+                  <button
+                    type="button"
+                    key={relation.id}
+                    className={
+                      relation.id === selectedRelation?.id
+                        ? `${styles.relationCard} ${styles.relationCardActive}`
+                        : styles.relationCard
+                    }
+                    onClick={() => setSelectedRelationId(relation.id)}
+                  >
+                    <strong>{relation.title}</strong>
+                    <span>{relation.description}</span>
+                    <small>{relation.meta}</small>
                   </button>
-                </div>
-              </section>
-            )
-          )}
+                ))}
+                <button type="button" className={styles.addCard}>
+                  <span>+</span>
+                  {kind === "冲突 / 张力" ? "发现更多张力" : kind === "延伸出去的问题" ? "提出新问题" : "添加更多"}
+                </button>
+              </div>
+            </section>
+          ))}
         </div>
 
         <div className={styles.legend}>
@@ -187,20 +249,20 @@ export function GravityPage() {
               <button
                 type="button"
                 className={styles.primaryAction}
-                disabled={!selectedRelation.sourceEntry}
+                disabled={!sourceEntry}
                 onClick={() => {
-                  if (!selectedRelation.sourceEntry) return;
+                  if (!sourceEntry) return;
                   dispatch({
                     type: "UPDATE_JUDGMENT",
                     payload: {
-                      id: selectedRelation.sourceEntry.id,
+                      id: sourceEntry.id,
                       projectTag: activeTopic,
                     },
                   });
                   dispatch({
                     type: "ROUTE_ENTRY",
                     payload: {
-                      id: selectedRelation.sourceEntry.id,
+                      id: sourceEntry.id,
                       destination: "connected",
                     },
                   });
@@ -210,15 +272,15 @@ export function GravityPage() {
               </button>
               <button
                 type="button"
-                disabled={!selectedRelation.sourceEntry}
+                disabled={!sourceEntry}
                 onClick={() => {
-                  if (!selectedRelation.sourceEntry) return;
+                  if (!sourceEntry) return;
                   dispatch({
                     type: "UPDATE_JUDGMENT",
                     payload: {
-                      id: selectedRelation.sourceEntry.id,
+                      id: sourceEntry.id,
                       judgmentStatement:
-                        selectedRelation.sourceEntry.judgmentStatement ||
+                        sourceEntry.judgmentStatement ||
                         `${selectedRelation.title}：${selectedRelation.description}`,
                     },
                   });
@@ -267,67 +329,31 @@ function buildTopics(entries: Entry[]): TopicSummary[] {
     .slice(0, 6);
 }
 
-function buildRelations(topic: string, entries: Entry[]): RelationCardModel[] {
+function selectTopicEntries(topic: string, entries: Entry[]): Entry[] {
   const topicEntries = entries.filter(
     (entry) => entry.projectTag === topic || entry.tags.includes(topic)
   );
-  const source = topicEntries.length > 0 ? topicEntries : entries.slice(0, 3);
-
-  const similar = source.slice(0, 3).map((entry) => ({
-    id: `similar-${entry.id}`,
-    kind: "相似的想法" as const,
-    title: entry.title,
-    description: entry.captureNote || entry.relevanceToMe || "和当前主题有相似线索。",
-    meta: `${formatRelative(entry.capturedAt)} · ${entry.tags[0] || entry.projectTag || "材料"}`,
-    sourceEntry: entry,
-  }));
-
-  const supporting = source
-    .filter((entry) => entry.sourceType !== "clue")
-    .slice(0, 3)
-    .map((entry) => ({
-      id: `support-${entry.id}`,
-      kind: "支撑它的材料" as const,
-      title: entry.title,
-      description: entry.whatItSays || "可以作为这个主题的材料证据。",
-      meta: `${entry.sourceType} · ${formatRelative(entry.capturedAt)}`,
-      sourceEntry: entry,
-    }));
-
-  const tensions: RelationCardModel[] = source.slice(0, 3).map((entry, index) => ({
-    id: `tension-${entry.id}`,
-    kind: "冲突 / 张力",
-    title:
-      index === 0
-        ? `${topic} vs 用户确认`
-        : `${entry.title.slice(0, 12)} vs 可公开表达`,
-    description: entry.relevanceToMe || "这里可能需要用户决定边界，而不是让 agent 自动吸收。",
-    meta: entry.status === "published" ? "已公开" : "待确认",
-    sourceEntry: entry,
-  }));
-
-  const questions: RelationCardModel[] = [
-    {
-      id: `question-${topic}-1`,
-      kind: "延伸出去的问题",
-      title: `这条线索最后应该流向哪里？`,
-      description: `围绕“${topic}”还没有形成稳定去向，需要继续观察。`,
-      meta: "待探索",
-    },
-    {
-      id: `question-${topic}-2`,
-      kind: "延伸出去的问题",
-      title: `哪些判断可以公开，哪些还在形成中？`,
-      description: "公开页需要给人和 agents 读，但不能把未确认判断伪装成结论。",
-      meta: "待探索",
-    },
-  ];
-
-  return [...similar, ...supporting, ...tensions, ...questions];
+  const source = topicEntries.length > 0 ? topicEntries : entries.slice(0, MAX_ENTRIES_PER_CALL);
+  return source.slice(0, MAX_ENTRIES_PER_CALL);
 }
 
-function groupRelations(relations: RelationCardModel[]) {
-  return relations.reduce<Record<RelationKind, RelationCardModel[]>>(
+function toRelationEntryInput(entry: Entry): RelationEntryInput {
+  return {
+    id: entry.id,
+    title: entry.title,
+    sourceType: entry.sourceType,
+    whatItSays: entry.whatItSays,
+    relevanceToMe: entry.relevanceToMe,
+    judgmentStatement: entry.judgmentStatement,
+    captureNote: entry.captureNote,
+    tags: entry.tags,
+    projectTag: entry.projectTag,
+    status: entry.status,
+  };
+}
+
+function groupRelations(relations: RelationCard[]) {
+  return relations.reduce<Record<RelationKind, RelationCard[]>>(
     (groups, relation) => {
       groups[relation.kind].push(relation);
       return groups;

@@ -91,6 +91,18 @@ export function loadMyContext(): MyContext {
   }
 }
 
+export function toCaptureMyContext(context: MyContext): {
+  currentProjects: string[];
+  activeQuestions: string[];
+  existingClaims: string[];
+} {
+  return {
+    currentProjects: context.current_projects,
+    activeQuestions: context.active_questions,
+    existingClaims: context.existing_claims,
+  };
+}
+
 export function saveMyContext(context: MyContext): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeContext(context)));

@@ -2,7 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import type { IncomingMessage } from 'node:http'
 import { extractDraftForInput, sanitizeMyContext } from './api/extract.ts'
-import type { CaptureInput } from './src/utils/extraction.ts'
+import { computeRelations } from './api/relations.ts'
+import type { CaptureInput, CaptureMyContext } from './src/utils/extraction.ts'
+import { sanitizeRelationEntries } from './src/utils/relations.ts'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -41,6 +43,42 @@ export default defineConfig({
             res.statusCode = 500
             res.setHeader('content-type', 'application/json')
             res.end(JSON.stringify({ error: 'Local extract failed' }))
+          }
+        })
+      },
+    },
+    {
+      name: 'local-api-relations',
+      configureServer(server) {
+        server.middlewares.use('/api/relations', async (req, res) => {
+          if (req.method !== 'POST') {
+            res.statusCode = 405
+            res.setHeader('content-type', 'application/json')
+            res.end(JSON.stringify({ error: 'Use POST' }))
+            return
+          }
+
+          try {
+            const body = (await readJsonBody(req)) as Record<string, unknown>
+            const topic = String(body.topic ?? '').trim()
+            const entries = sanitizeRelationEntries(body.entries)
+            if (!topic || entries.length === 0) {
+              res.statusCode = 400
+              res.setHeader('content-type', 'application/json')
+              res.end(JSON.stringify({ error: 'Invalid relations payload' }))
+              return
+            }
+
+            const myContext = body.myContext as CaptureMyContext | undefined
+            const result = await computeRelations(topic, entries, myContext)
+            res.statusCode = 200
+            res.setHeader('content-type', 'application/json')
+            res.end(JSON.stringify(result))
+          } catch (error) {
+            console.error('local relations failed', error)
+            res.statusCode = 500
+            res.setHeader('content-type', 'application/json')
+            res.end(JSON.stringify({ error: 'Local relations failed' }))
           }
         })
       },
