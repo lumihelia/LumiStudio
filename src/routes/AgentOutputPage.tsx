@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { Entry } from "../data/types";
 import { useAppState } from "../state/useAppState";
+import { isPublishedEntry } from "../data/types";
 import { formatRelative } from "../utils/format";
 import styles from "./AgentOutputPage.module.css";
 
@@ -33,7 +34,7 @@ const TYPE_LABEL: Record<ObjectType, string> = {
 export function AgentOutputPage() {
   const { entries } = useAppState();
   const [filter, setFilter] = useState<FeedFilter>("全部更新");
-  const publicEntries = useMemo(() => entries.filter((entry) => entry.isPublic), [entries]);
+  const publicEntries = useMemo(() => entries.filter(isPublishedEntry), [entries]);
   const feedItems = useMemo(() => buildFeedItems(publicEntries), [publicEntries]);
   const topics = useMemo(() => buildTopics(publicEntries), [publicEntries]);
   const typeCounts = useMemo(() => buildTypeCounts(feedItems), [feedItems]);

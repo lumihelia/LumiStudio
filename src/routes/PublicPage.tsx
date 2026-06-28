@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { Entry } from "../data/types";
-import { SOURCE_TYPE_LABEL } from "../data/types";
+import { SOURCE_TYPE_LABEL, isPublishedEntry } from "../data/types";
 import { useAppState } from "../state/useAppState";
 import { formatDate } from "../utils/format";
 import styles from "./PublicPage.module.css";
@@ -13,7 +13,7 @@ export function PublicPage() {
 
   const publicEntries = useMemo(() => {
     return entries
-      .filter((entry) => entry.isPublic)
+      .filter(isPublishedEntry)
       .sort(
         (a, b) =>
           new Date(b.processedAt ?? b.capturedAt).getTime() -

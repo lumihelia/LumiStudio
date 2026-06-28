@@ -57,3 +57,7 @@ export const STATUS_SHORT_LABEL: Record<LifecycleStatus, string> = {
   published: "已公开",
   discarded: "已移除",
 };
+
+export function isPublishedEntry(entry: Entry): boolean {
+  return entry.status !== "discarded" && (entry.status === "published" || entry.isPublic === true);
+}
