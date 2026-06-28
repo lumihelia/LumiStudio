@@ -1,4 +1,4 @@
-import type { Entry } from "./types";
+import type { Entry } from "./types.js";
 
 export interface EntryRow {
   id: string;

@@ -1,5 +1,5 @@
-import type { Entry } from "../data/types";
-import { SOURCE_TYPE_LABEL } from "../data/types";
+import type { Entry } from "../data/types.js";
+import { SOURCE_TYPE_LABEL } from "../data/types.js";
 
 export function formatDate(iso: string | null): string {
   if (!iso) return "";

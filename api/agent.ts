@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { rowToEntry } from "../src/data/entryMapper";
-import type { EntryRow } from "../src/data/entryMapper";
-import { toAgentShape, toRssFeed, toMarkdown } from "../src/utils/format";
-import { isPublishedEntry } from "../src/data/types";
+import { rowToEntry } from "../src/data/entryMapper.js";
+import type { EntryRow } from "../src/data/entryMapper.js";
+import { toAgentShape, toRssFeed, toMarkdown } from "../src/utils/format.js";
+import { isPublishedEntry } from "../src/data/types.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
