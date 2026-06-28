@@ -18,7 +18,7 @@ export const DEFAULT_MY_CONTEXT: MyContext = {
   identity:
     "我是一个关注 AI agents、长期上下文、个人成长和信息系统的产品型创作者，正在尝试把材料处理、判断生成、公开表达和 agent-readable web 连接起来。",
   current_projects: [
-    "LumiLens：把看到的东西变成判断、行动和可公开认知资产",
+    "LumiStudio：把看到的东西变成判断、行动和可公开认知资产",
     "PodLens：把播客/访谈材料变成忠实解读和公开阅读页",
     "AI 产品实验：探索手机捕捉、PC 操作台、公开层、agent-readable 输出",
   ],

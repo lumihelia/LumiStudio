@@ -93,7 +93,7 @@ export function AgentOutputPage() {
         <div className={styles.feedHeader}>
           <div>
             <h1>{filter}</h1>
-            <p>来自 LumiLens 公开页的最新知识更新流。</p>
+            <p>来自 LumiStudio 公开页的最新知识更新流。</p>
           </div>
           <div className={styles.sortTools}>
             <button type="button">最新优先</button>
@@ -116,7 +116,7 @@ export function AgentOutputPage() {
       <aside className={styles.feedInfoPane} aria-label="Feed 说明">
         <InfoPanel title="Feed 说明">
           <p>
-            这是 LumiLens 公开更新流，汇集来自所有公开页的知识对象与更新动态。可被人类阅读，也可被 Agents 稳定消费。
+            这是 LumiStudio 公开更新流，汇集来自所有公开页的知识对象与更新动态。可被人类阅读，也可被 Agents 稳定消费。
           </p>
           <a href="/api/agent?format=feed">了解 Feed 协议 →</a>
         </InfoPanel>
@@ -249,7 +249,7 @@ function buildFeedItems(entries: Entry[]): FeedItem[] {
           title: entry.title,
           summary: entry.relevanceToMe || entry.captureNote,
           tags,
-          source: entry.origin || "LumiLens Blog",
+          source: entry.origin || "LumiStudio Blog",
           updatedAt,
         });
       }
@@ -261,7 +261,7 @@ function buildFeedItems(entries: Entry[]): FeedItem[] {
           title: entry.title,
           summary: entry.judgmentStatement,
           tags,
-          source: entry.origin || "LumiLens Blog",
+          source: entry.origin || "LumiStudio Blog",
           updatedAt,
         });
       }
@@ -272,7 +272,7 @@ function buildFeedItems(entries: Entry[]): FeedItem[] {
         title: entry.title,
         summary: entry.whatItSays || "这条公开对象还在补充解读。",
         tags,
-        source: entry.origin || "LumiLens Blog",
+        source: entry.origin || "LumiStudio Blog",
         updatedAt,
       });
 

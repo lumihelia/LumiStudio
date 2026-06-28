@@ -38,7 +38,7 @@ export function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "lumilens-my-context.md";
+    anchor.download = "lumistudio-my-context.md";
     anchor.click();
     URL.revokeObjectURL(url);
     setSavedState("已生成 Markdown 模板");
@@ -61,7 +61,7 @@ export function SettingsPage() {
         <p className={styles.kicker}>Settings / My Context</p>
         <h1>我的上下文</h1>
         <p>
-          这是 LumiLens 判断“这和我有什么关系、它该去哪、能不能公开”的底层配置。
+          这是 LumiStudio 判断“这和我有什么关系、它该去哪、能不能公开”的底层配置。
           主工作流仍然是工作台、引力台、公开页和 Feed。
         </p>
         <div className={styles.heroActions}>

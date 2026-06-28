@@ -17,7 +17,7 @@ export function NavBar() {
       <div className={styles.inner}>
         <NavLink to="/" className={styles.brand} aria-label="回到收进来">
           <span className={styles.logoMark} aria-hidden="true" />
-          <span className={styles.wordmark}>LumiLens</span>
+          <span className={styles.wordmark}>LumiStudio</span>
           <span className={styles.tagline}>让思考被看见，让判断可沉淀</span>
         </NavLink>
         <button

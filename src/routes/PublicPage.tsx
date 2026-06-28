@@ -240,7 +240,7 @@ export function PublicPage() {
             </InfoPanel>
 
             <InfoPanel title="分享与引用">
-              <div className={styles.shareBox}>https://lumilens.ai/p/pub_{selectedEntry.id.slice(0, 8)}</div>
+              <div className={styles.shareBox}>https://studio.lumihelia.com/p/pub_{selectedEntry.id.slice(0, 8)}</div>
               <div className={styles.exportGrid}>
                 <button type="button">复制链接</button>
                 <a href="/api/agent?format=markdown">导出 Markdown</a>
