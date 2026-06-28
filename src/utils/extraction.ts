@@ -1,10 +1,17 @@
 import type { SourceType } from "../data/types.js";
 import { SOURCE_TYPE_LABEL } from "../data/types.js";
 
+export interface CaptureMyContext {
+  currentProjects: string[];
+  activeQuestions: string[];
+  existingClaims: string[];
+}
+
 export interface CaptureInput {
   rawInput: string;
   captureNote: string;
   sourceType: SourceType;
+  myContext?: CaptureMyContext;
 }
 
 export interface ExtractedMetadata {
@@ -26,6 +33,7 @@ export interface EntryDraft {
   tags: string[];
   coreBullets: string[];
   wasExtracted?: boolean;
+  suggestedProjectTag?: string;
 }
 
 const URL_PATTERN = /https?:\/\/[^\s"'<>，。；、]+/i;
@@ -92,6 +100,14 @@ export function createDraftFromMetadata(
         ? "已经保留原始链接。页面正文需要在电脑端继续确认。"
         : "这条材料还只有一个线索，需要在电脑端继续捋清楚。");
 
+  const suggestedProjectTag = suggestProjectTag(input.myContext, `${rawInput} ${captureNote}`);
+
+  const relevanceToMe =
+    captureNote ||
+    (suggestedProjectTag
+      ? `这条材料看起来可能和「${shortProjectName(suggestedProjectTag)}」有关，要不要接到这个项目？这只是建议，请在这里确认或改写。`
+      : "这条材料还需要在工作台里确认和当前项目、判断之间的关系。");
+
   const coreBullets = [
     siteName ? `来源指向 ${siteName}` : "",
     whatItSays ? truncate(whatItSays, 140) : "",
@@ -104,10 +120,29 @@ export function createDraftFromMetadata(
     captureNote,
     sourceType,
     whatItSays,
-    relevanceToMe: captureNote,
+    relevanceToMe,
     tags: compactTags([SOURCE_TYPE_LABEL[sourceType], siteName]),
     coreBullets,
+    suggestedProjectTag,
   };
+}
+
+function shortProjectName(project: string): string {
+  return project.split(/[:：]/)[0]?.trim() || project.trim();
+}
+
+function suggestProjectTag(myContext: CaptureMyContext | undefined, text: string): string | undefined {
+  if (!myContext || !Array.isArray(myContext.currentProjects) || myContext.currentProjects.length === 0) {
+    return undefined;
+  }
+  const haystack = text.toLowerCase();
+  for (const project of myContext.currentProjects) {
+    const shortName = shortProjectName(project);
+    if (shortName.length >= 2 && haystack.includes(shortName.toLowerCase())) {
+      return project;
+    }
+  }
+  return undefined;
 }
 
 export function cleanText(value: string): string {

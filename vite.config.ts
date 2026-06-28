@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import type { IncomingMessage } from 'node:http'
-import { extractDraftForInput } from './api/extract.ts'
+import { extractDraftForInput, sanitizeMyContext } from './api/extract.ts'
 import type { CaptureInput } from './src/utils/extraction.ts'
 
 // https://vite.dev/config/
@@ -29,7 +29,10 @@ export default defineConfig({
               return
             }
 
-            const result = await extractDraftForInput(input)
+            const result = await extractDraftForInput({
+              ...input,
+              myContext: sanitizeMyContext(input.myContext),
+            })
             res.statusCode = 200
             res.setHeader('content-type', 'application/json')
             res.end(JSON.stringify(result))

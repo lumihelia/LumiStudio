@@ -5,6 +5,7 @@ import {
   inferSourceType,
   truncate,
   type CaptureInput,
+  type CaptureMyContext,
   type EntryDraft,
   type ExtractedMetadata,
 } from "../src/utils/extraction.js";
@@ -98,7 +99,29 @@ function parseInput(body: unknown): CaptureInput | null {
   }
 
   if (!rawInput.trim() && !captureNote.trim()) return null;
-  return { rawInput, captureNote, sourceType };
+  const myContext = sanitizeMyContext(parsed.myContext);
+  return { rawInput, captureNote, sourceType, myContext };
+}
+
+export function sanitizeMyContext(value: unknown): CaptureMyContext | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Partial<CaptureMyContext>;
+  const clean = (list: unknown): string[] =>
+    Array.isArray(list)
+      ? list.map((item) => String(item).slice(0, 200)).filter(Boolean).slice(0, 12)
+      : [];
+
+  const myContext: CaptureMyContext = {
+    currentProjects: clean(raw.currentProjects),
+    activeQuestions: clean(raw.activeQuestions),
+    existingClaims: clean(raw.existingClaims),
+  };
+
+  const isEmpty =
+    myContext.currentProjects.length === 0 &&
+    myContext.activeQuestions.length === 0 &&
+    myContext.existingClaims.length === 0;
+  return isEmpty ? undefined : myContext;
 }
 
 async function draftWithGemini(
@@ -167,9 +190,12 @@ function buildGeminiPrompt(
   metadata: ExtractedMetadata,
   fallbackDraft: EntryDraft
 ): string {
+  const myContext = input.myContext;
   return [
     "你是 LumiStudio 的材料整理助手。把用户刚收进来的东西整理成一条可在 PC 端继续确认的材料草稿。",
     "不要替用户做最终判断，不要编造原文没有的信息。可以生成保守摘要、标签和核心点，所有内容之后都由用户确认。",
+    "relevanceToMe 只能保守描述「这条材料可能和用户的哪个项目/问题/已有判断相关、为什么」，不要把用户已有的判断或任何外部观点，当成用户对这条新材料已经下的结论直接写进去——那仍然需要用户自己在工作台确认。",
+    "如果下面的项目/问题/判断信息和这条材料看不出明显关系，就不要硬扯关系，写清楚这条材料本身是什么即可。",
     "输出必须是 JSON，字段为 title, whatItSays, relevanceToMe, tags, coreBullets。",
     "",
     `用户输入：${input.rawInput}`,
@@ -179,6 +205,10 @@ function buildGeminiPrompt(
     `抓到的站点：${metadata.siteName || ""}`,
     `抓到的描述：${metadata.description || ""}`,
     `抓到的正文片段：${metadata.textSnippet || ""}`,
+    "",
+    `用户当前在做的项目：${myContext?.currentProjects.join("；") || "未提供"}`,
+    `用户长期关心的问题：${myContext?.activeQuestions.join("；") || "未提供"}`,
+    `用户已有的判断（仅供参考用户关心什么，不代表用户对这条新材料的判断）：${myContext?.existingClaims.join("；") || "未提供"}`,
   ].join("\n");
 }
 

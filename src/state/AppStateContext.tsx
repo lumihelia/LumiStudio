@@ -54,7 +54,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             captureNote: draft.captureNote.trim(),
             whatItSays: draft.whatItSays,
             relevanceToMe: draft.relevanceToMe,
-            projectTag: null,
+            projectTag: draft.suggestedProjectTag ?? null,
             judgmentStatement: "",
             nextAction: "",
             status: draft.wasExtracted ? "extracted" : "captured",
