@@ -30,7 +30,14 @@ export function AgentOutputPage() {
     <PageShell wide>
       <div className={styles.heading}>
         <h1>给 agent 看的版本</h1>
-        <p>跟公开页同一批内容，换成 agent 能直接读的结构。</p>
+        <p>跟公开页同一批内容，换成 agent 能直接读的结构。下面是预览。</p>
+        <p className={styles.realUrl}>
+          全网的 agent 真正能直接抓取的地址（不用跑 JS，纯 HTTP 就能读）：
+          <br />
+          <a href="/api/agent?format=json">/api/agent?format=json</a>
+          {" · "}
+          <a href="/api/agent?format=markdown">/api/agent?format=markdown</a>
+        </p>
       </div>
       <div className={styles.toggle}>
         <button

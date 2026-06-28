@@ -1,0 +1,42 @@
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { createClient } from "@supabase/supabase-js";
+import { rowToEntry } from "../src/data/entryMapper";
+import type { EntryRow } from "../src/data/entryMapper";
+import { toAgentShape, toMarkdown } from "../src/utils/format";
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+
+  const url = process.env.VITE_SUPABASE_URL;
+  const key = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    res.status(500).json({ error: "Server missing Supabase configuration" });
+    return;
+  }
+
+  const supabase = createClient(url, key);
+  const { data, error } = await supabase
+    .from("entries")
+    .select("*")
+    .eq("is_public", true)
+    .order("processed_at", { ascending: false });
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const publicEntries = (data as EntryRow[]).map(rowToEntry);
+  const format = req.query.format === "markdown" ? "markdown" : "json";
+
+  if (format === "markdown") {
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.status(200).send(toMarkdown(publicEntries));
+    return;
+  }
+
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.status(200).json({
+    entries: publicEntries.map((entry) => toAgentShape(entry, publicEntries)),
+  });
+}
