@@ -14,6 +14,13 @@ const MAX_PAGE_LENGTH = 900000;
 const FETCH_TIMEOUT_MS = 6500;
 const GEMINI_TIMEOUT_MS = 8000;
 
+// Metadata fetch + Gemini call run sequentially and can together approach
+// 15s worst-case; Vercel's default function timeout is 10s on most plans,
+// which would kill the whole request before either timeout fires.
+export const config = {
+  maxDuration: 30,
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
