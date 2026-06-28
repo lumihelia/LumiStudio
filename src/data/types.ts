@@ -36,8 +36,6 @@ export const SOURCE_TYPE_LABEL: Record<SourceType, string> = {
   clue: "线索",
 };
 
-export const KNOWN_PROJECTS = ["LumiStudio 产品阅读", "组织设计研究", "城市观察笔记"];
-
 export const STATUS_LABEL: Record<LifecycleStatus, string> = {
   captured: "刚收进来，还没处理",
   extracted: "系统已解析出内容",
