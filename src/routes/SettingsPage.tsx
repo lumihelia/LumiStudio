@@ -89,7 +89,7 @@ export function SettingsPage() {
       </section>
 
       <div className={styles.grid}>
-        <section className={styles.editor}>
+        <section className={styles.editor} aria-label="我的上下文编辑区">
           <ContextBlock title="1. 我是谁" description="一句话说明当前身份和判断位置。">
             <textarea
               value={context.identity}
@@ -175,20 +175,6 @@ export function SettingsPage() {
             onChange={(value) => updateList("intake_rules", value)}
           />
         </section>
-
-        <aside className={styles.preview}>
-          <section className={styles.previewPanel}>
-            <h2>给系统看的版本</h2>
-            <p>这份结构会作为判断上下文，帮助工作台解释材料和你之间的关系。</p>
-            <pre>{JSON.stringify(context, null, 2)}</pre>
-          </section>
-
-          <section className={styles.previewPanel}>
-            <h2>Markdown 模板</h2>
-            <p>下载后可以在任意编辑器里填好，再上传回来。</p>
-            <pre>{markdown}</pre>
-          </section>
-        </aside>
       </div>
     </main>
   );
