@@ -25,6 +25,7 @@ export interface EntryDraft {
   relevanceToMe: string;
   tags: string[];
   coreBullets: string[];
+  wasExtracted?: boolean;
 }
 
 const URL_PATTERN = /https?:\/\/[^\s"'<>，。；、]+/i;

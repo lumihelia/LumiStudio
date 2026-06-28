@@ -1,6 +1,13 @@
 export type SourceType = "article" | "video" | "podcast" | "webpage" | "clue";
 
-export type LifecycleStatus = "captured" | "parked" | "connected" | "published" | "discarded";
+export type LifecycleStatus =
+  | "captured"
+  | "extracted"
+  | "reviewed"
+  | "parked"
+  | "connected"
+  | "published"
+  | "discarded";
 
 export interface Entry {
   id: string;
@@ -33,8 +40,20 @@ export const KNOWN_PROJECTS = ["LumiStudio 产品阅读", "组织设计研究", 
 
 export const STATUS_LABEL: Record<LifecycleStatus, string> = {
   captured: "刚收进来，还没处理",
+  extracted: "系统已解析出内容",
+  reviewed: "人类已编辑确认",
   parked: "先放着了",
   connected: "连接到项目里了",
   published: "已经放到公开页",
   discarded: "已从界面移除",
+};
+
+export const STATUS_SHORT_LABEL: Record<LifecycleStatus, string> = {
+  captured: "待捋",
+  extracted: "已解析",
+  reviewed: "已确认",
+  parked: "先放着",
+  connected: "已接入项目",
+  published: "已公开",
+  discarded: "已移除",
 };

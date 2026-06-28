@@ -57,7 +57,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             projectTag: null,
             judgmentStatement: "",
             nextAction: "",
-            status: "captured",
+            status: draft.wasExtracted ? "extracted" : "captured",
             isPublic: false,
             capturedAt: new Date().toISOString(),
             processedAt: null,
@@ -75,9 +75,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         }
         case "UPDATE_JUDGMENT": {
           const { id, ...fields } = action.payload;
+          const existing = entriesRef.current.find((e) => e.id === id);
+          if (existing?.status === "discarded") break;
+          const nextStatus =
+            existing && (existing.status === "published" || existing.status === "connected")
+              ? existing.status
+              : "reviewed";
           supabase
             .from("entries")
-            .update(entryToRow(fields))
+            .update(entryToRow({ ...fields, status: nextStatus, processedAt: new Date().toISOString() }))
             .eq("id", id)
             .then(({ error }) => {
               if (error) console.error("UPDATE_JUDGMENT failed", error);

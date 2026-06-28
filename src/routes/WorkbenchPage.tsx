@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { Entry } from "../data/types";
-import { SOURCE_TYPE_LABEL } from "../data/types";
+import { SOURCE_TYPE_LABEL, STATUS_SHORT_LABEL } from "../data/types";
 import { useAppState } from "../state/useAppState";
 import { formatDate, formatRelative } from "../utils/format";
 import styles from "./WorkbenchPage.module.css";
@@ -87,7 +87,9 @@ export function WorkbenchPage() {
                   <span className={styles.sourceIcon}>{SOURCE_TYPE_LABEL[entry.sourceType].slice(0, 1)}</span>
                   <span className={styles.itemText}>
                     <strong>{entry.title}</strong>
-                    <small>{entry.origin || SOURCE_TYPE_LABEL[entry.sourceType]}</small>
+                    <small>
+                      {entry.origin || SOURCE_TYPE_LABEL[entry.sourceType]} · {STATUS_SHORT_LABEL[entry.status]}
+                    </small>
                   </span>
                   <time>{formatRelative(entry.capturedAt)}</time>
                 </button>
@@ -134,6 +136,8 @@ export function WorkbenchPage() {
               <span>{selectedEntry.origin || "未记录来源"}</span>
               <span>{formatDate(selectedEntry.capturedAt)}</span>
               <span>{estimateReadTime(selectedEntry)} 分钟阅读</span>
+              <span>{STATUS_SHORT_LABEL[selectedEntry.status]}</span>
+              <span>{selectedEntry.isPublic ? "公开" : "私有"}</span>
             </div>
             <div className={styles.tagRow}>
               {normalizedTags(selectedEntry).map((tag) => (

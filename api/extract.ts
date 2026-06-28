@@ -74,6 +74,7 @@ export async function extractDraftForInput(input: CaptureInput): Promise<{
     mode = "gemini";
   }
 
+  draft.wasExtracted = mode !== "fallback";
   return { draft, mode };
 }
 
