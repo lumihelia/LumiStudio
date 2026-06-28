@@ -2,12 +2,8 @@ import { useEffect, useState } from "react";
 import type { SourceType } from "../../data/types";
 import { SOURCE_TYPE_LABEL } from "../../data/types";
 import { useAppState } from "../../state/useAppState";
-import {
-  createFallbackDraft,
-  inferSourceType,
-  type CaptureInput,
-  type EntryDraft,
-} from "../../utils/extraction";
+import { getEntryDraft } from "../../utils/clientCapture";
+import { inferSourceType, type CaptureInput } from "../../utils/extraction";
 import styles from "./CaptureForm.module.css";
 
 const SOURCE_TYPES: SourceType[] = ["article", "video", "podcast", "webpage", "clue"];
@@ -159,19 +155,4 @@ export function CaptureForm() {
       )}
     </>
   );
-}
-
-async function getEntryDraft(input: CaptureInput): Promise<EntryDraft> {
-  try {
-    const response = await fetch("/api/extract", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!response.ok) return createFallbackDraft(input);
-    const data = (await response.json()) as { draft?: EntryDraft };
-    return data.draft ?? createFallbackDraft(input);
-  } catch {
-    return createFallbackDraft(input);
-  }
 }

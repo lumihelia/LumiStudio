@@ -1,3 +1,7 @@
+.mobileCapture {
+  display: none;
+}
+
 .heading {
   margin-bottom: var(--space-4);
 }
@@ -17,4 +21,15 @@
   letter-spacing: 0.04em;
   color: var(--muted-color);
   margin-bottom: var(--space-1);
+}
+
+@media (max-width: 640px) {
+  .desktopCapture {
+    display: none;
+  }
+
+  .mobileCapture {
+    display: block;
+    min-height: 100%;
+  }
 }

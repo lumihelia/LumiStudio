@@ -100,3 +100,9 @@
     display: none;
   }
 }
+
+@media (max-width: 640px) {
+  .bar {
+    display: none;
+  }
+}
