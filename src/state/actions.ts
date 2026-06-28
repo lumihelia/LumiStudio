@@ -19,6 +19,7 @@ export type Action =
         nextAction?: string;
         tags?: string[];
         coreBullets?: string[];
+        onSettled?: (ok: boolean) => void;
       };
     }
   | { type: "ROUTE_ENTRY"; payload: { id: string; destination: RouteDestination } }

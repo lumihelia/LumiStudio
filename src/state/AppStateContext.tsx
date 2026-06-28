@@ -74,9 +74,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           break;
         }
         case "UPDATE_JUDGMENT": {
-          const { id, ...fields } = action.payload;
+          const { id, onSettled, ...fields } = action.payload;
           const existing = entriesRef.current.find((e) => e.id === id);
-          if (existing?.status === "discarded") break;
+          if (existing?.status === "discarded") {
+            onSettled?.(false);
+            break;
+          }
           const nextStatus =
             existing && (existing.status === "published" || existing.status === "connected")
               ? existing.status
@@ -86,8 +89,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             .update(entryToRow({ ...fields, status: nextStatus, processedAt: new Date().toISOString() }))
             .eq("id", id)
             .then(({ error }) => {
-              if (error) console.error("UPDATE_JUDGMENT failed", error);
-              else refetch();
+              if (error) {
+                console.error("UPDATE_JUDGMENT failed", error);
+                onSettled?.(false);
+              } else {
+                refetch();
+                onSettled?.(true);
+              }
             });
           break;
         }

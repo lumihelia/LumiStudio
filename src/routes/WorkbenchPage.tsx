@@ -9,9 +9,26 @@ import styles from "./WorkbenchPage.module.css";
 
 const DEFAULT_PROJECT = "LumiStudio 产品阅读";
 
+type ProcessingField = "captureNote" | "whatItSays" | "relevanceToMe" | "judgmentStatement";
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+const SAVE_STATE_LABEL: Record<SaveState, string> = {
+  idle: "",
+  saving: "保存中...",
+  saved: "已保存",
+  error: "保存失败，稍后再试",
+};
+
 export function WorkbenchPage() {
   const { entries, dispatch } = useAppState();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Record<ProcessingField, string>>({
+    captureNote: "",
+    whatItSays: "",
+    relevanceToMe: "",
+    judgmentStatement: "",
+  });
+  const [saveState, setSaveState] = useState<SaveState>("idle");
 
   const sortedEntries = useMemo(() => {
     return [...entries].sort((a, b) => {
@@ -33,14 +50,57 @@ export function WorkbenchPage() {
     }
   }, [selectedId, sortedEntries]);
 
+  useEffect(() => {
+    if (!selectedEntry) return;
+    setDraft({
+      captureNote: selectedEntry.captureNote,
+      whatItSays: selectedEntry.whatItSays,
+      relevanceToMe: selectedEntry.relevanceToMe,
+      judgmentStatement: selectedEntry.judgmentStatement,
+    });
+    setSaveState("idle");
+    // Only re-sync when switching to a different entry - the 3s poll must not
+    // clobber text the user is mid-typing in the same entry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEntry?.id]);
+
   const updateSelected = (fields: Partial<Entry>) => {
     if (!selectedEntry) return;
     dispatch({ type: "UPDATE_JUDGMENT", payload: { id: selectedEntry.id, ...fields } });
   };
 
+  const commitField = (field: ProcessingField, value: string, onComplete?: (ok: boolean) => void) => {
+    if (!selectedEntry || value === selectedEntry[field]) {
+      onComplete?.(true);
+      return;
+    }
+    const patch: Partial<Pick<Entry, ProcessingField>> = { [field]: value } as Partial<
+      Pick<Entry, ProcessingField>
+    >;
+    setSaveState("saving");
+    dispatch({
+      type: "UPDATE_JUDGMENT",
+      payload: {
+        id: selectedEntry.id,
+        ...patch,
+        onSettled: (ok) => {
+          setSaveState(ok ? "saved" : "error");
+          onComplete?.(ok);
+        },
+      },
+    });
+  };
+
   const routeSelected = (destination: "published" | "connected" | "parked") => {
     if (!selectedEntry) return;
     dispatch({ type: "ROUTE_ENTRY", payload: { id: selectedEntry.id, destination } });
+  };
+
+  const publishSelected = () => {
+    if (!selectedEntry) return;
+    commitField("judgmentStatement", draft.judgmentStatement, (ok) => {
+      if (ok) routeSelected("published");
+    });
   };
 
   const discardEntry = (id: string) => {
@@ -170,8 +230,9 @@ export function WorkbenchPage() {
             <Section title="这篇讲了什么">
               <div className={styles.summaryBox}>
                 <textarea
-                  value={selectedEntry.whatItSays}
-                  onChange={(event) => updateSelected({ whatItSays: event.target.value })}
+                  value={draft.whatItSays}
+                  onChange={(event) => setDraft((d) => ({ ...d, whatItSays: event.target.value }))}
+                  onBlur={(event) => commitField("whatItSays", event.target.value)}
                   aria-label="这篇讲了什么"
                   placeholder="先把原材料本身讲清楚，不要急着下判断。"
                 />
@@ -207,7 +268,11 @@ export function WorkbenchPage() {
       <aside className={styles.processingPane} aria-label="我的处理">
         <div className={styles.sideHeader}>
           <h2>我的处理</h2>
-          <span className={styles.filterIcon} aria-hidden="true" />
+          {saveState !== "idle" ? (
+            <span className={styles.mutedText}>{SAVE_STATE_LABEL[saveState]}</span>
+          ) : (
+            <span className={styles.filterIcon} aria-hidden="true" />
+          )}
         </div>
 
         {!selectedEntry ? (
@@ -219,8 +284,9 @@ export function WorkbenchPage() {
           <div className={styles.sideStack}>
             <Panel title="刚刚想到" eyebrow="想法">
               <textarea
-                value={selectedEntry.captureNote}
-                onChange={(event) => updateSelected({ captureNote: event.target.value })}
+                value={draft.captureNote}
+                onChange={(event) => setDraft((d) => ({ ...d, captureNote: event.target.value }))}
+                onBlur={(event) => commitField("captureNote", event.target.value)}
                 aria-label="刚刚想到"
                 placeholder="你当时为什么觉得它值得留下？"
               />
@@ -229,8 +295,9 @@ export function WorkbenchPage() {
 
             <Panel title="和我有什么关系" eyebrow="关系">
               <textarea
-                value={selectedEntry.relevanceToMe}
-                onChange={(event) => updateSelected({ relevanceToMe: event.target.value })}
+                value={draft.relevanceToMe}
+                onChange={(event) => setDraft((d) => ({ ...d, relevanceToMe: event.target.value }))}
+                onBlur={(event) => commitField("relevanceToMe", event.target.value)}
                 aria-label="和我有什么关系"
                 placeholder="它影响哪个判断、项目或行动？"
               />
@@ -267,6 +334,18 @@ export function WorkbenchPage() {
               <Link to="/gravity">查看更多关联 →</Link>
             </Panel>
 
+            <Panel title="我的判断" eyebrow="判断">
+              <textarea
+                value={draft.judgmentStatement}
+                onChange={(event) =>
+                  setDraft((d) => ({ ...d, judgmentStatement: event.target.value }))
+                }
+                onBlur={(event) => commitField("judgmentStatement", event.target.value)}
+                aria-label="我的判断"
+                placeholder="这条材料让你形成了什么判断？放到公开页之前，这里需要是你自己的话。"
+              />
+            </Panel>
+
             <Panel title="下一步" eyebrow="行动">
               <div className={styles.actionGrid}>
                 <button
@@ -281,14 +360,11 @@ export function WorkbenchPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    updateSelected({
-                      judgmentStatement:
-                        selectedEntry.judgmentStatement ||
-                        selectedEntry.relevanceToMe ||
-                        selectedEntry.whatItSays,
-                    })
-                  }
+                  onClick={() => {
+                    const prefill = draft.judgmentStatement || draft.relevanceToMe || draft.whatItSays;
+                    setDraft((d) => ({ ...d, judgmentStatement: prefill }));
+                    commitField("judgmentStatement", prefill);
+                  }}
                 >
                   写成一段
                 </button>
@@ -300,8 +376,8 @@ export function WorkbenchPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={!selectedEntry.judgmentStatement.trim()}
-                  onClick={() => routeSelected("published")}
+                  disabled={!draft.judgmentStatement.trim()}
+                  onClick={publishSelected}
                 >
                   放到公开页
                 </button>
