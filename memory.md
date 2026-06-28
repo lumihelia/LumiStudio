@@ -2,62 +2,58 @@
 
 ## Current State
 
-LumiStudio MVP is **functionally complete** for today's scope: a static-frontend (no backend, no login, no real API) demo of a tool that forces every captured piece of information toward one of four endings — published, connected to a project, parked, or discarded. Built 2026-06-28, in one session, handed off mid-build risk was flagged by the user (possible handoff to Codex if Claude credits run out) — this file is written with that handoff in mind.
+LumiStudio has moved past the mock-data MVP stage. Current architecture: Vite + React SPA, **real Supabase Postgres backend** (no auth, single shared `entries` table, open RLS — explicitly a demo-only tradeoff), cross-device sync via **polling** (not Realtime — see Decisions for why), hosted in a **public GitHub repo** (`lumihelia/LumiStudio`), not yet deployed to Vercel (Round 3, next).
 
 Product thesis (do not relitigate without reason): information only earns the right to be called an asset once someone has decided where it ends up. The user's own framing: *"每条值得留下来的信息，最后到底流向了哪里？"*
 
-Full reasoning/spec lives in the approved plan file at `/Users/heloiseqin/.claude/plans/hi-cc-lumistudio-jaunty-sundae.md` (outside this repo, same machine — may not be visible to a remote agent). This `memory.md` is the self-contained summary; read it first.
+**Hackathon context** (confirmed with user, photographed in `Helia-Materials/` — gitignored, not in the repo): built for an in-person event ("AI Hacker House", 潮河泾 Hi-Tech Park). 3-minute demo + Q&A, pitch focus on product + technical implementation, peer-voted (no judges). Timeline: 18:50 submission opens, **18:59 hard deadline**, 19:00 demos start. `pitch.html` includes a "技术实现" section for this reason.
 
-**Critical context discovered mid-build, confirmed with the user**: this is being built for an in-person hackathon ("AI Hacker House", 潮河泾 Hi-Tech Park) happening today. Rules (photographed in `Helia-Materials/IMG_7389.JPG` and `IMG_7390.JPG`, taken ~10:34-10:38 local time today): 3-minute demo + Q&A per builder, no team-background intro, **pitch focus must be on product + technical implementation**, no judges — builders vote for each other after all demos (1 vote each, can't self-vote). Timeline: 18:50 submission portal opens, **18:59 hard submission deadline**, 19:00 demo order announced and demos begin, then peer voting, results announced immediately after. `pitch.html` was revised after this was confirmed to add a "技术实现" section (Vite+React SPA, shared state across 4 views, mock data + localStorage) so it satisfies the "technical implementation" focus the rules require, not just product thesis/keywords.
+**The user wants all chat going forward in Chinese.** A live-build plan exists at `/Users/heloiseqin/.claude/plans/hi-cc-lumistudio-jaunty-sundae.md` (second version, post-mock-MVP — covers the Supabase/Vercel/repo/UI-rework rounds; outside this repo, may not be visible to a remote agent).
 
 ## Completed
 
-- **Stack**: Vite + React 19 + TypeScript, `react-router-dom` v7, plain CSS Modules (no Tailwind, no component library — kept dependency-free per the "boring solution" rule).
-- **4 routes**, single SPA, shared in-memory state (React Context + reducer) persisted to `localStorage` (key `lumistudio.entries.v1`):
-  - `/` — `CapturePage` (手机端收集页): capture form (收进来/记一下) + recent captures list.
-  - `/workbench` — `WorkbenchPage` (PC 三栏操作台): InboxColumn / MaterialColumn / JudgmentColumn, three-column CSS grid laid out with spacing + typographic labels only (deliberately **not** bordered/boxed — avoids the kanban-board look that was flagged as the single biggest visual risk).
-  - `/public` — `PublicPage`: only `isPublic` entries, judgment statement as lead text, editorial reading layout.
-  - `/agent` — `AgentOutputPage`: same filtered set as `/public`, JSON/Markdown toggle, narrower `toAgentShape` projection (omits internal fields).
-- **Data layer**: `src/data/types.ts` (Entry type, 4 lifecycle statuses: captured/parked/connected/published), `src/data/seedEntries.ts` (7 hand-authored Chinese seed entries spanning all 5 source types and all 4 statuses), `src/state/appReducer.ts` (ADD_ENTRY / UPDATE_JUDGMENT / ROUTE_ENTRY / DISCARD_ENTRY / RESET_TO_SEED), `src/lib/localStorage.ts` (guarded load/save, falls back to seed on corrupt data).
-- **Live-demo recovery affordance**: a quiet "恢复成示例数据" text link at the far right of `NavBar` (`src/components/layout/NavBar.tsx`), low visual weight (`--placeholder-color`, smaller font, no border), inline confirm pattern (same style as 不留了). Dispatches `RESET_TO_SEED`, which replaces all entries with a fresh copy of the original 7 seed entries. Added specifically because this will be demoed live at the hackathon (see below) — if a presenter fumbles the workbench mid-demo, this recovers clean state in two clicks without opening devtools.
-- **Design system**: `src/styles/tokens.css` (exact CSS variable block from the project's identity spec) + `src/styles/global.css`, Playfair Display (headings) / Source Serif Pro (body) via Google Fonts link in `index.html`. Chinese button copy uses the user's exact natural-speech vocabulary throughout: 收进来、记一下、连接到项目里、写成一段、放到公开页、先放着、不留了 — verified present verbatim in the UI, no generic 保存/提交/确认 crept in.
-- **Standalone `pitch.html`** at repo root (outside the Vite build graph, inline styles, same fonts/tokens): keyword-driven, large Playfair Display statements — opening question, thesis, core loop, four endings, four surfaces, closing line. Verified it renders correctly opened through a static file request (no SPA dependency).
+**Round 1 — GitHub repo.** `git init`, public repo `lumihelia/LumiStudio` created and pushed via `gh repo create --push`. `.gitignore` extended to exclude `Helia-Materials/` (personal hackathon reference photos, not a deliverable) and `.claude/settings.local.json` (local-only tool permissions) — both correctly excluded from the public repo. Standing instruction from user: **commit after every round of work** going forward.
+
+**Round 2 — Real backend.**
+- Supabase Postgres table `entries` (snake_case columns, `id text primary key default gen_random_uuid()::text` — **not uuid type**, because seed entries use human-readable ids like `"e1"`). Open RLS policy (`for all using (true) with check (true)`) — no auth, single shared dataset, intentional demo tradeoff.
+- `src/lib/supabaseClient.ts` reads `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` from env. `.env.local` holds real values (gitignored via `*.local`), `.env.example` documents the two keys.
+- `src/data/entryMapper.ts` — `rowToEntry()`/`entryToRow()` translate Postgres snake_case ↔ the unchanged TS `Entry` camelCase shape.
+- `src/state/AppStateContext.tsx` internals fully rewritten, **same external `{ entries, dispatch }` shape** — every consumer component (`CaptureForm`, `JudgmentColumn`, `RoutingActions`, `NavBar`) needed zero changes. State is now sourced from Supabase, refetched on an interval (see Decisions), and every action (`ADD_ENTRY`/`UPDATE_JUDGMENT`/`ROUTE_ENTRY`/`DISCARD_ENTRY`/`RESET_TO_SEED`) calls Supabase directly then triggers an immediate `refetch()` for instant local feedback.
+- `src/state/appReducer.ts` renamed to `src/state/actions.ts` (it no longer contains a reducer, only the shared `Action`/`RouteDestination` types — kept for clarity since this project may be handed off).
+- `src/lib/localStorage.ts` deleted — Supabase is the single source of truth now, no client-side persistence layer.
+- Seeded the live table with the 7 demo entries via the existing 恢复成示例数据 reset button (which now writes to Supabase instead of localStorage).
+
+**Carried over from the mock-MVP build** (still true): 4 routes (`/`, `/workbench`, `/public`, `/agent`), design tokens (`src/styles/tokens.css`), Chinese natural-speech button vocabulary (收进来/记一下/连接到项目里/写成一段/放到公开页/先放着/不留了), the non-kanban 3-column workbench layout, `pitch.html`.
 
 ## Decisions
 
-- **Single SPA with shared state, not 4 disconnected static HTML files.** The user said "静态前端" (static frontend) but also explicitly prioritized "体验闭环" (closed interaction loop). Resolved by reading "static" as "no backend/no real API," not "no client-side interactivity" — a React SPA with in-memory state + localStorage still satisfies "static" while making the loop real: capturing on `/` actually surfaces in the Workbench inbox; routing to 放到公开页 actually appears on `/public` and `/agent`, live, same session. This was a deliberate build-decision surfaced in the plan, not a silent deviation.
-- **Discard (不留了) really removes the entry from state**, not a soft delete — matches the product thesis that this ending is a final decision, not a hidden trash can. Has an inline confirm step (not a browser `confirm()`) to prevent accidental data loss during the demo.
-- **Three-column workbench uses CSS grid + spacing + muted typographic labels for column separation — no per-column background/border/shadow boxes.** This was flagged pre-build as the highest visual risk (looking like a Trello/kanban board) and was specifically verified post-build via screenshot at desktop width — it reads as one continuous editorial surface, not bordered panels.
-- **Project picker is a simple set of chips (KNOWN_PROJECTS) + freeform text input**, not a full tag/entity system — matches the explicit non-goal of avoiding a tagging system beyond "a simple project picker."
+- **Polling (3s interval), not Supabase Realtime, for cross-device sync.** Originally implemented via `postgres_changes` + a Realtime channel subscription. Debugged extensively with the user directly in the Supabase dashboard (confirmed: table correctly in the `supabase_realtime` publication, INSERT/UPDATE/DELETE all enabled, RLS open) — the channel reached `SUBSCRIBED` status but **no postgres_changes events ever arrived**, even when testing via Supabase's own Realtime Inspector. Root cause not resolved (likely something dashboard/project-config-specific not visible to either of us). Given the hackathon time pressure, made the deliberate call to rip it out and use simple polling instead: `setInterval(refetch, 3000)` plus an immediate `refetch()` after every local mutation for instant same-tab feedback. Verified working end-to-end including a true cross-device simulation (inserted a row via raw `fetch` POST to the Supabase REST API, confirmed the running app picked it up via polling alone within 3s, with zero action taken in that tab). This is the "boring solution that works" — slightly higher latency than true Realtime, but robust and fully understood, which matters more for a live demo than shaving 2-3 seconds.
+- **No auth, open RLS.** Confirmed with user — single shared dataset for a one-day demo. Must not carry forward into any real/non-demo use without adding auth + scoped RLS.
+- **`id` column is `text`, not `uuid`.** Needed because seed entries use ids like `"e1"`–`"e7"`; new entries get a server-generated UUID string via `default gen_random_uuid()::text`, same column.
+- Decisions carried over from the mock-MVP build (still valid): single SPA over 4 static pages (for the closed-loop experience), 不留了 is a real delete not soft-delete, 3-column workbench uses spacing/typography not borders (avoids kanban look), simple chip-based project picker.
 
 ## Verification
 
-- `npx tsc -b --noEmit` — zero type errors.
-- `npm run build` — production build succeeds cleanly (`tsc -b && vite build`), no warnings.
-- Manual closed-loop test in dev preview (Chrome via Claude Preview MCP): captured a test item is not needed — instead selected seed entry `e1` (unprocessed), filled in a judgment statement, clicked 放到公开页, confirmed via `localStorage` inspection that `status`/`isPublic`/`processedAt` updated correctly, then confirmed the same entry appeared on `/public` (judgment as lead text, correct provenance line) and on `/agent` in both JSON and Markdown views with matching content.
-- Responsive check done at 375px (mobile — primary target for `/`, reads cleanly), 768px (workbench correctly stacks to single column below the 900px breakpoint), 1024px (workbench renders as true 3-column grid, no overflow, no kanban look).
-- Console check: zero errors, zero warnings across the entire session (capture, navigate, fill, route, toggle JSON/Markdown).
-- Copy check: all required verbs (收进来/记一下/连接到项目里/写成一段/放到公开页/先放着/不留了) confirmed present verbatim via DOM query of all rendered buttons.
-- `pitch.html` verified by direct static-file fetch through the dev server (200 response) and full-page screenshot — renders identically without any SPA/app state dependency.
-- **Negative-path check (second pass)**: routed a clue entry to 连接到项目里 with a non-empty judgment statement, confirmed via `localStorage` that `isPublic` stayed `false`, then confirmed the entry's text appears on neither `/public` nor `/agent` (both JSON and Markdown views). Also confirmed an already-`parked` entry (e4) doesn't leak. This was the one risk path not explicitly checked in the first verification pass.
-- **Reset affordance check**: clicked 恢复成示例数据 → confirmed inline confirm step renders → clicked 确定 → confirmed via `localStorage` that all 7 entries returned to their exact original seed state (statuses, `isPublic`, empty judgment fields on e1/e5) and the confirm UI collapsed back to the quiet link.
-- Final `npm run build` after these changes: clean, no errors.
+- `npx tsc -b --noEmit` and `npm run build` — clean after every round, including after the Realtime→polling swap.
+- Insert/update/delete through the UI confirmed via direct Supabase REST queries (not just trusting the UI) — caught a real bug this way (see Known Issues: flaky `preview_click`).
+- Cross-device sync verified by inserting a row via raw REST `fetch` (simulating a phone) and confirming the open app tab displayed it via polling alone, no manual refresh, no action in that tab.
+- Reset-to-seed verified against the live Supabase table (not localStorage) — confirmed row count returns to exactly 7 after delete-all + re-insert-seed.
+- Mock-MVP-era verifications (responsive 375/768/1024px, negative routing paths, Chinese copy, console-clean) still hold — backend swap didn't touch any UI/component code.
 
 ## Known Issues
 
-- No automated test suite (intentional — frontend-only mock MVP, manual verification only, matches plan).
-- NavBar shows all 4 routes at every viewport width, including mobile — a deliberate demo-navigability choice so a reviewer can reach every page from a phone-width screenshot; a "real" shipped product would likely scope mobile nav to capture-only.
-- `pitch.html` loads fonts from Google Fonts over the network — will fall back to system serif if opened offline.
-- Project picker (chips + freeform text) does not deduplicate near-identical typed project names (e.g. trailing space) — acceptable for a 7-entry demo, would need normalization if this became a real feature.
+- **`preview_click` (the MCP browser tool) was unreliable on the capture form's submit button** during this session — reported success but didn't actually trigger the click/submit; switching to `element.click()` via `preview_eval` worked reliably every time. Worth remembering for future verification in this project: prefer eval-based clicks over `preview_click` for form submissions.
+- Realtime (`postgres_changes`) does not work in this Supabase project for reasons never fully diagnosed (publication + RLS + Inspector all looked correct). If a future session wants true sub-second sync, this would need a fresh investigation — possibly try Supabase's newer "Broadcast from database" pattern instead of the deprecated-leaning `postgres_changes` path.
+- No auth / open RLS — by design for today, must change before any real use.
+- Carried over: no automated tests, NavBar shows all 4 routes at every viewport, `pitch.html` needs network for fonts, project picker doesn't dedupe near-identical names.
 
 ## Architecture Audits
 
-None yet — project is at Prototype stage (today's MVP), single greenfield build session, no audit due per the checkpoint rule.
+None yet — still effectively prototype stage (now with a real DB, but single-user, no auth, demo-only).
 
 ## Next Steps
 
-MVP scope for today is done — all 11 build/verify/hardening tasks completed, including the post-discovery hackathon hardening pass (negative-path verification + live-demo reset affordance). **Submission deadline today is 18:59** (rules photographed in `Helia-Materials/`); as of the last update it was 12:33, leaving comfortable margin. If continuing before the deadline:
-1. Optionally rehearse the 3-minute demo against the actual rules (pitch focus = product + technical implementation, no team intro) using `pitch.html` as the visual aid.
-2. Add a project-specific `CLAUDE.md` if this repo continues past the demo stage.
-3. If moving past mock data: replace `src/lib/localStorage.ts` + seed data with a real backend — this is explicitly out of scope for the current build and was not started.
-4. No other in-progress work — nothing was left mid-implementation.
+1. **Round 3 (next): Vercel deployment.** Connect the GitHub repo to Vercel for auto-deploy on push, set `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` as Vercel env vars, verify the live URL works cross-device (phone + desktop, same as the local polling test above).
+2. **Round 4: UI rework.** PC `/workbench` needs a fixed-viewport app-shell (no outer-page scroll, per user's reference mockups) instead of the current scrolling layout; mobile `/` capture flow should become a bottom-sheet/modal interaction instead of an inline form. Keep all current colors/fonts — structural/interaction patterns only, from reference images already reviewed with the user.
+3. Decided against: native iOS Share Extension and iOS Shortcuts (see plan file for the full reasoning) — the mobile web capture link + polling sync is the agreed cross-device mechanism for the demo.
+4. Commit after this round (per standing instruction), then proceed to Round 3.
