@@ -7,7 +7,7 @@ import {
   type CaptureInput,
   type EntryDraft,
   type ExtractedMetadata,
-} from "../src/utils/extraction.ts";
+} from "../src/utils/extraction.js";
 
 const MAX_INPUT_LENGTH = 5000;
 const MAX_PAGE_LENGTH = 900000;
