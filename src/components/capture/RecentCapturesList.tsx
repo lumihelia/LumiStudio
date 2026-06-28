@@ -5,7 +5,7 @@ import { formatRelative } from "../../utils/format";
 import styles from "./RecentCapturesList.module.css";
 
 export function RecentCapturesList() {
-  const { entries } = useAppState();
+  const { entries, dispatch } = useAppState();
 
   const recent = useMemo(() => {
     return [...entries]
@@ -21,11 +21,21 @@ export function RecentCapturesList() {
       ) : (
         recent.map((entry) => (
           <div key={entry.id} className={styles.row}>
-            <span className={styles.title}>{entry.title}</span>
-            <span className={styles.note}>{entry.captureNote || entry.whatItSays}</span>
-            <span className={styles.meta}>
-              {SOURCE_TYPE_LABEL[entry.sourceType]} · {formatRelative(entry.capturedAt)}
-            </span>
+            <div className={styles.rowText}>
+              <span className={styles.title}>{entry.title}</span>
+              <span className={styles.note}>{entry.captureNote || entry.whatItSays}</span>
+              <span className={styles.meta}>
+                {SOURCE_TYPE_LABEL[entry.sourceType]} · {formatRelative(entry.capturedAt)}
+              </span>
+            </div>
+            <button
+              type="button"
+              className={styles.deleteButton}
+              aria-label={`从界面移除 ${entry.title}`}
+              onClick={() => dispatch({ type: "DISCARD_ENTRY", payload: { id: entry.id } })}
+            >
+              删除
+            </button>
           </div>
         ))
       )}

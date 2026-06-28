@@ -31,6 +31,10 @@ export function MobileCaptureExperience() {
 
   const canSave = rawInput.trim().length > 0 || captureNote.trim().length > 0;
 
+  const discardEntry = (id: string) => {
+    dispatch({ type: "DISCARD_ENTRY", payload: { id } });
+  };
+
   const saveCapture = async (override?: { rawInput: string; captureNote: string }) => {
     const nextRaw = override?.rawInput ?? rawInput;
     const nextNote = override?.captureNote ?? captureNote;
@@ -76,6 +80,7 @@ export function MobileCaptureExperience() {
             status={status}
             recent={recent}
             onSave={() => void saveCapture()}
+            onDiscard={discardEntry}
           />
         )}
       </main>
@@ -103,6 +108,7 @@ function CaptureTab({
   status,
   recent,
   onSave,
+  onDiscard,
 }: {
   mode: CaptureMode;
   setMode: (mode: CaptureMode) => void;
@@ -115,6 +121,7 @@ function CaptureTab({
   status: string;
   recent: Entry[];
   onSave: () => void;
+  onDiscard: (id: string) => void;
 }) {
   return (
     <section className={styles.panel}>
@@ -187,10 +194,19 @@ function CaptureTab({
           <p className={styles.sectionLabel}>刚收进来的</p>
           {recent.map((entry) => (
             <article key={entry.id} className={styles.recentItem}>
-              <p>{entry.title}</p>
-              <span>
-                {SOURCE_TYPE_LABEL[entry.sourceType]} · {formatRelative(entry.capturedAt)}
-              </span>
+              <div>
+                <p>{entry.title}</p>
+                <span>
+                  {SOURCE_TYPE_LABEL[entry.sourceType]} · {formatRelative(entry.capturedAt)}
+                </span>
+              </div>
+              <button
+                type="button"
+                aria-label={`从界面移除 ${entry.title}`}
+                onClick={() => onDiscard(entry.id)}
+              >
+                删除
+              </button>
             </article>
           ))}
         </div>

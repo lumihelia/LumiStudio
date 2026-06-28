@@ -29,7 +29,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       console.error("Failed to fetch entries", error);
       return;
     }
-    setEntries((data as EntryRow[]).map(rowToEntry));
+    setEntries(
+      (data as EntryRow[])
+        .map(rowToEntry)
+        .filter((entry) => entry.status !== "discarded")
+    );
   }, []);
 
   useEffect(() => {
@@ -103,7 +107,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         case "DISCARD_ENTRY": {
           supabase
             .from("entries")
-            .delete()
+            .update(
+              entryToRow({
+                status: "discarded",
+                isPublic: false,
+                processedAt: new Date().toISOString(),
+              })
+            )
             .eq("id", action.payload.id)
             .then(({ error }) => {
               if (error) console.error("DISCARD_ENTRY failed", error);

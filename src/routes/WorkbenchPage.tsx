@@ -43,6 +43,11 @@ export function WorkbenchPage() {
     dispatch({ type: "ROUTE_ENTRY", payload: { id: selectedEntry.id, destination } });
   };
 
+  const discardEntry = (id: string) => {
+    dispatch({ type: "DISCARD_ENTRY", payload: { id } });
+    if (selectedId === id) setSelectedId(null);
+  };
+
   const relatedEntries = selectedEntry
     ? findRelatedEntries(selectedEntry, sortedEntries).slice(0, 3)
     : [];
@@ -66,23 +71,35 @@ export function WorkbenchPage() {
             </div>
           ) : (
             sortedEntries.map((entry) => (
-              <button
-                type="button"
+              <div
                 key={entry.id}
                 className={
                   entry.id === selectedEntry?.id
-                    ? `${styles.inboxItem} ${styles.inboxItemActive}`
-                    : styles.inboxItem
+                    ? `${styles.inboxRow} ${styles.inboxRowActive}`
+                    : styles.inboxRow
                 }
-                onClick={() => setSelectedId(entry.id)}
               >
-                <span className={styles.sourceIcon}>{SOURCE_TYPE_LABEL[entry.sourceType].slice(0, 1)}</span>
-                <span className={styles.itemText}>
-                  <strong>{entry.title}</strong>
-                  <small>{entry.origin || SOURCE_TYPE_LABEL[entry.sourceType]}</small>
-                </span>
-                <time>{formatRelative(entry.capturedAt)}</time>
-              </button>
+                <button
+                  type="button"
+                  className={styles.inboxItem}
+                  onClick={() => setSelectedId(entry.id)}
+                >
+                  <span className={styles.sourceIcon}>{SOURCE_TYPE_LABEL[entry.sourceType].slice(0, 1)}</span>
+                  <span className={styles.itemText}>
+                    <strong>{entry.title}</strong>
+                    <small>{entry.origin || SOURCE_TYPE_LABEL[entry.sourceType]}</small>
+                  </span>
+                  <time>{formatRelative(entry.capturedAt)}</time>
+                </button>
+                <button
+                  type="button"
+                  className={styles.deleteButton}
+                  aria-label={`从界面移除 ${entry.title}`}
+                  onClick={() => discardEntry(entry.id)}
+                >
+                  删除
+                </button>
+              </div>
             ))
           )}
         </div>

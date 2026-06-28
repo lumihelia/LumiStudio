@@ -187,6 +187,10 @@
 
 .recentItem {
   padding: var(--space-2);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1);
+  align-items: center;
 }
 
 .recentItem p {
@@ -201,6 +205,15 @@
 .matchLabel {
   color: var(--muted-color);
   font-size: 0.84rem;
+}
+
+.recentItem button {
+  border: 1px solid var(--border-color);
+  border-radius: calc(var(--border-radius) / 2);
+  background: var(--white);
+  color: var(--muted-color);
+  padding: calc(var(--space-1) / 2) var(--space-1);
+  font-size: 0.82rem;
 }
 
 .readingArticle {

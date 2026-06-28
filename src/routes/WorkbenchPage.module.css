@@ -87,6 +87,18 @@
   gap: var(--space-2);
 }
 
+.inboxRow {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1);
+  align-items: stretch;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius);
+  background: transparent;
+  padding: var(--space-1);
+}
+
 .inboxItem {
   width: 100%;
   display: grid;
@@ -95,21 +107,36 @@
   align-items: start;
   text-align: left;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--border-radius);
-  padding: var(--space-2);
+  border: none;
+  border-radius: calc(var(--border-radius) / 2);
+  padding: var(--space-1);
   color: var(--text-color);
 }
 
-.inboxItem:hover {
+.inboxRow:hover {
   background: var(--input-bg);
   border-color: color-mix(in srgb, var(--border-color) 70%, var(--white));
 }
 
-.inboxItemActive {
+.inboxRowActive {
   background: color-mix(in srgb, var(--white) 72%, var(--background-color));
   border-color: var(--primary-color);
   box-shadow: 0 var(--space-1) var(--space-3) var(--shadow);
+}
+
+.deleteButton {
+  align-self: center;
+  border: 1px solid var(--border-color);
+  border-radius: calc(var(--border-radius) / 2);
+  background: var(--white);
+  color: var(--muted-color);
+  padding: calc(var(--space-1) / 2) var(--space-1);
+  font-size: 0.78rem;
+}
+
+.deleteButton:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-hover);
 }
 
 .sourceIcon {

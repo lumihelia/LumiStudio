@@ -1,6 +1,6 @@
 export type SourceType = "article" | "video" | "podcast" | "webpage" | "clue";
 
-export type LifecycleStatus = "captured" | "parked" | "connected" | "published";
+export type LifecycleStatus = "captured" | "parked" | "connected" | "published" | "discarded";
 
 export interface Entry {
   id: string;
@@ -36,4 +36,5 @@ export const STATUS_LABEL: Record<LifecycleStatus, string> = {
   parked: "先放着了",
   connected: "连接到项目里了",
   published: "已经放到公开页",
+  discarded: "已从界面移除",
 };

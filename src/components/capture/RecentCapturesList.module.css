@@ -10,11 +10,19 @@
 }
 
 .row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
   padding: var(--space-2);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   background: rgba(255, 255, 255, 0.56);
   margin-bottom: var(--space-1);
+}
+
+.rowText {
+  min-width: 0;
 }
 
 .row:last-child {
@@ -43,4 +51,18 @@
 .empty {
   color: var(--muted-color);
   font-size: 0.95rem;
+}
+
+.deleteButton {
+  border: 1px solid var(--border-color);
+  border-radius: calc(var(--border-radius) / 2);
+  background: var(--white);
+  color: var(--muted-color);
+  padding: calc(var(--space-1) / 2) var(--space-1);
+  font-size: 0.82rem;
+}
+
+.deleteButton:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-hover);
 }
