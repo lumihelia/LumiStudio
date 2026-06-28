@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { PageShell } from "../components/layout/PageShell";
 import { InboxColumn } from "../components/workbench/InboxColumn";
 import { MaterialColumn } from "../components/workbench/MaterialColumn";
 import { JudgmentColumn } from "../components/workbench/JudgmentColumn";
@@ -21,20 +20,26 @@ export function WorkbenchPage() {
   const selectedEntry = entries.find((entry) => entry.id === selectedId) ?? null;
 
   return (
-    <PageShell wide>
+    <div className={styles.shell}>
       <div className={styles.heading}>
         <h1>认知操作台</h1>
         <p>把收进来的东西，捋清楚它讲了什么、跟我有什么关系、接下来去哪儿。</p>
       </div>
       <div className={styles.grid}>
-        <InboxColumn
-          entries={sortedEntries}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
-        <MaterialColumn entry={selectedEntry} />
-        <JudgmentColumn entry={selectedEntry} onDiscarded={() => setSelectedId(null)} />
+        <div className={styles.columnScroll}>
+          <InboxColumn
+            entries={sortedEntries}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
+        </div>
+        <div className={styles.columnScroll}>
+          <MaterialColumn entry={selectedEntry} />
+        </div>
+        <div className={styles.columnScroll}>
+          <JudgmentColumn entry={selectedEntry} onDiscarded={() => setSelectedId(null)} />
+        </div>
       </div>
-    </PageShell>
+    </div>
   );
 }

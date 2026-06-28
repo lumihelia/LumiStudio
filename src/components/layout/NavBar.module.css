@@ -87,3 +87,10 @@
   font-size: 0.78rem;
   padding: 0;
 }
+
+@media (max-width: 600px) {
+  .reset,
+  .resetConfirm {
+    display: none;
+  }
+}

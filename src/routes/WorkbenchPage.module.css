@@ -1,15 +1,32 @@
+.shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 901px) {
+  .shell {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
 .heading {
-  margin-bottom: var(--space-6);
+  flex-shrink: 0;
+  margin-bottom: var(--space-4);
 }
 
 .heading h1 {
-  font-size: 1.9rem;
-  margin-bottom: var(--space-1);
+  font-size: 1.6rem;
+  margin-bottom: 4px;
 }
 
 .heading p {
   color: var(--muted-color);
-  font-size: 1rem;
+  font-size: 0.92rem;
 }
 
 .grid {
@@ -18,9 +35,27 @@
   gap: var(--space-6);
 }
 
+@media (min-width: 901px) {
+  .grid {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
 @media (max-width: 900px) {
   .grid {
     grid-template-columns: 1fr;
-    gap: var(--space-6);
+  }
+}
+
+.columnScroll {
+  min-width: 0;
+}
+
+@media (min-width: 901px) {
+  .columnScroll {
+    height: 100%;
+    overflow-y: auto;
+    padding-right: var(--space-1);
   }
 }

@@ -1,0 +1,11 @@
+.appShell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.outlet {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
