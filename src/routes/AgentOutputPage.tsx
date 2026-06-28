@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageShell } from "../components/layout/PageShell";
 import { useAppState } from "../state/useAppState";
 import { toAgentShape, toMarkdown } from "../utils/format";
@@ -8,13 +9,19 @@ type Format = "json" | "markdown";
 
 export function AgentOutputPage() {
   const { entries } = useAppState();
-  const [format, setFormat] = useState<Format>("json");
+  const [searchParams] = useSearchParams();
+  const initialFormat = searchParams.get("format") === "markdown" ? "markdown" : "json";
+  const [format, setFormat] = useState<Format>(initialFormat);
 
   const publicEntries = useMemo(() => entries.filter((entry) => entry.isPublic), [entries]);
 
   const output = useMemo(() => {
     if (format === "json") {
-      return JSON.stringify({ entries: publicEntries.map(toAgentShape) }, null, 2);
+      return JSON.stringify(
+        { entries: publicEntries.map((entry) => toAgentShape(entry, publicEntries)) },
+        null,
+        2
+      );
     }
     return toMarkdown(publicEntries);
   }, [format, publicEntries]);

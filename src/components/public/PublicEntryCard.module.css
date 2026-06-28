@@ -12,7 +12,23 @@
 .context {
   font-size: 0.85rem;
   color: var(--muted-color);
+  margin-bottom: var(--space-1);
+}
+
+.tagRow {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
   margin-bottom: var(--space-2);
+}
+
+.tag {
+  font-size: 0.75rem;
+  color: var(--accent-color);
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 2px var(--space-1);
 }
 
 .statement {
@@ -30,7 +46,53 @@
   max-width: 68ch;
 }
 
+.sectionLabel {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--muted-color);
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-1);
+}
+
+.whatItSays {
+  font-size: 0.98rem;
+  line-height: 1.75;
+  max-width: 68ch;
+  color: var(--text-color);
+}
+
+.bullets {
+  margin: 0;
+  padding-left: 1.1em;
+  font-size: 0.95rem;
+  line-height: 1.75;
+  max-width: 68ch;
+}
+
+.relatedList {
+  margin: 0;
+  padding-left: 1.1em;
+  font-size: 0.92rem;
+  line-height: 1.7;
+}
+
 .provenance {
   font-size: 0.85rem;
   color: var(--muted-color);
+  margin-top: var(--space-3);
+}
+
+.agentLinks {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.agentLink {
+  font-size: 0.82rem;
+  color: var(--muted-color);
+}
+
+.agentLink:hover {
+  color: var(--primary-color);
 }

@@ -17,6 +17,8 @@ export interface Entry {
   isPublic: boolean;
   capturedAt: string;
   processedAt: string | null;
+  tags: string[];
+  coreBullets: string[];
 }
 
 export const SOURCE_TYPE_LABEL: Record<SourceType, string> = {

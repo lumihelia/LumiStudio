@@ -15,6 +15,8 @@ export interface EntryRow {
   is_public: boolean;
   captured_at: string;
   processed_at: string | null;
+  tags: string[] | null;
+  core_bullets: string[] | null;
 }
 
 export function rowToEntry(row: EntryRow): Entry {
@@ -33,6 +35,8 @@ export function rowToEntry(row: EntryRow): Entry {
     isPublic: row.is_public,
     capturedAt: row.captured_at,
     processedAt: row.processed_at,
+    tags: row.tags ?? [],
+    coreBullets: row.core_bullets ?? [],
   };
 }
 
@@ -52,5 +56,7 @@ export function entryToRow(entry: Partial<Entry>): Partial<EntryRow> {
   if (entry.isPublic !== undefined) row.is_public = entry.isPublic;
   if (entry.capturedAt !== undefined) row.captured_at = entry.capturedAt;
   if (entry.processedAt !== undefined) row.processed_at = entry.processedAt;
+  if (entry.tags !== undefined) row.tags = entry.tags;
+  if (entry.coreBullets !== undefined) row.core_bullets = entry.coreBullets;
   return row;
 }

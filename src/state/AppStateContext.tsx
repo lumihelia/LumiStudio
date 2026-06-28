@@ -58,6 +58,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             isPublic: false,
             capturedAt: new Date().toISOString(),
             processedAt: null,
+            tags: [],
+            coreBullets: [],
           };
           supabase
             .from("entries")

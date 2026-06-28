@@ -11,7 +11,7 @@ interface JudgmentColumnProps {
 }
 
 export function JudgmentColumn({ entry, onDiscarded }: JudgmentColumnProps) {
-  const { dispatch } = useAppState();
+  const { entries, dispatch } = useAppState();
   const [customProject, setCustomProject] = useState("");
 
   if (!entry) {
@@ -26,9 +26,20 @@ export function JudgmentColumn({ entry, onDiscarded }: JudgmentColumnProps) {
   const update = (fields: Partial<Entry>) =>
     dispatch({ type: "UPDATE_JUDGMENT", payload: { id: entry.id, ...fields } });
 
+  const related = entry.projectTag
+    ? entries.filter((e) => e.id !== entry.id && e.projectTag === entry.projectTag)
+    : [];
+
   return (
     <div className={styles.column}>
       <p className={styles.label}>判断</p>
+
+      {entry.captureNote && (
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>刚刚想到</span>
+          <p className={styles.captureNote}>{entry.captureNote}</p>
+        </div>
+      )}
 
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor="relevance">
@@ -45,7 +56,7 @@ export function JudgmentColumn({ entry, onDiscarded }: JudgmentColumnProps) {
       </div>
 
       <div className={styles.field}>
-        <span className={styles.fieldLabel}>连接到哪个项目</span>
+        <span className={styles.fieldLabel}>接到哪个项目</span>
         <div className={styles.projectRow}>
           <button
             type="button"
@@ -87,6 +98,18 @@ export function JudgmentColumn({ entry, onDiscarded }: JudgmentColumnProps) {
           }}
         />
       </div>
+
+      {related.length > 0 && (
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>它还牵到了什么</span>
+          <p className={styles.relatedHint}>同一个项目里的其他材料</p>
+          <ul className={styles.relatedList}>
+            {related.map((r) => (
+              <li key={r.id}>{r.title}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor="judgment">

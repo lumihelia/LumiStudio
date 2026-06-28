@@ -20,25 +20,52 @@ export function formatRelative(iso: string): string {
   return `${diffDays} 天前`;
 }
 
-export interface AgentEntry {
-  title: string;
-  sourceType: string;
-  origin: string;
-  judgmentStatement: string;
-  relevanceToMe: string;
-  projectTag: string | null;
-  processedAt: string | null;
+export interface AgentRelation {
+  type: "relates";
+  to: string;
 }
 
-export function toAgentShape(entry: Entry): AgentEntry {
+export interface AgentEntry {
+  object_type: "material";
+  title: string;
+  source: string;
+  source_type: string;
+  visibility: "public";
+  summary: string;
+  author_note: string;
+  claims: string[];
+  questions: string[];
+  related_topics: string[];
+  relations: AgentRelation[];
+  status: string;
+  updated_at: string | null;
+  markdown_url: string;
+  json_url: string;
+}
+
+export function toAgentShape(entry: Entry, allPublicEntries: Entry[]): AgentEntry {
+  const relations: AgentRelation[] = entry.projectTag
+    ? allPublicEntries
+        .filter((e) => e.id !== entry.id && e.projectTag === entry.projectTag)
+        .map((e) => ({ type: "relates" as const, to: e.title }))
+    : [];
+
   return {
+    object_type: "material",
     title: entry.title,
-    sourceType: entry.sourceType,
-    origin: entry.origin,
-    judgmentStatement: entry.judgmentStatement,
-    relevanceToMe: entry.relevanceToMe,
-    projectTag: entry.projectTag,
-    processedAt: entry.processedAt,
+    source: entry.origin,
+    source_type: entry.sourceType,
+    visibility: "public",
+    summary: entry.whatItSays,
+    author_note: entry.relevanceToMe,
+    claims: entry.judgmentStatement ? [entry.judgmentStatement] : [],
+    questions: [],
+    related_topics: entry.tags,
+    relations,
+    status: entry.status,
+    updated_at: entry.processedAt,
+    markdown_url: `/agent?format=markdown#${entry.id}`,
+    json_url: `/agent?format=json#${entry.id}`,
   };
 }
 
@@ -55,10 +82,21 @@ export function toMarkdown(entries: Entry[]): string {
         "",
         entry.relevanceToMe,
         "",
+      ];
+      if (entry.whatItSays) {
+        lines.push("**这篇讲了什么**", "", entry.whatItSays, "");
+      }
+      if (entry.coreBullets.length > 0) {
+        lines.push("**核心观点**", "", ...entry.coreBullets.map((b) => `- ${b}`), "");
+      }
+      if (entry.tags.length > 0) {
+        lines.push(`标签：${entry.tags.join("、")}`, "");
+      }
+      lines.push(
         `来源：${SOURCE_TYPE_LABEL[entry.sourceType]} · ${entry.origin}${
           entry.projectTag ? ` · ${entry.projectTag}` : ""
-        } · ${formatDate(entry.processedAt)}`,
-      ];
+        } · ${formatDate(entry.processedAt)}`
+      );
       return lines.join("\n");
     })
     .join("\n\n---\n\n");

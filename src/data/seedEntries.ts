@@ -16,6 +16,8 @@ export const SEED_ENTRIES: Entry[] = [
     isPublic: false,
     capturedAt: "2026-06-27T09:14:00+08:00",
     processedAt: null,
+    tags: [],
+    coreBullets: [],
   },
   {
     id: "e2",
@@ -35,6 +37,11 @@ export const SEED_ENTRIES: Entry[] = [
     isPublic: true,
     capturedAt: "2026-06-22T21:40:00+08:00",
     processedAt: "2026-06-23T11:05:00+08:00",
+    tags: ["注意力经济", "产品设计"],
+    coreBullets: [
+      "大部分应用不是在抢用户的时间，是在抢用户做决定的那一刻",
+      "收集这个动作本身不该包含任何系统推荐或排序",
+    ],
   },
   {
     id: "e3",
@@ -54,6 +61,11 @@ export const SEED_ENTRIES: Entry[] = [
     isPublic: false,
     capturedAt: "2026-06-20T08:02:00+08:00",
     processedAt: "2026-06-21T19:30:00+08:00",
+    tags: ["组织设计", "沉默成本"],
+    coreBullets: [
+      "沉默往往不是缺乏判断，是判断者认定说了也没用",
+      "组织会因此系统性地丢失本来存在的信息",
+    ],
   },
   {
     id: "e4",
@@ -73,6 +85,11 @@ export const SEED_ENTRIES: Entry[] = [
     isPublic: false,
     capturedAt: "2026-06-18T15:50:00+08:00",
     processedAt: "2026-06-19T10:12:00+08:00",
+    tags: ["城市观察", "数据可视化"],
+    coreBullets: [
+      "用一个分数衡量步行便利度，但忽略了主观体验",
+      "单一数字适合快速比较，不适合表达判断本身",
+    ],
   },
   {
     id: "e5",
@@ -89,6 +106,8 @@ export const SEED_ENTRIES: Entry[] = [
     isPublic: false,
     capturedAt: "2026-06-26T20:18:00+08:00",
     processedAt: null,
+    tags: [],
+    coreBullets: [],
   },
   {
     id: "e6",
@@ -108,6 +127,11 @@ export const SEED_ENTRIES: Entry[] = [
     isPublic: true,
     capturedAt: "2026-06-15T13:25:00+08:00",
     processedAt: "2026-06-16T09:48:00+08:00",
+    tags: ["知识管理", "产品哲学"],
+    coreBullets: [
+      "自动整理是个陷阱——用户会因此越来越不信任系统",
+      "好工具该让用户更容易写下判断，而不是替用户生成判断",
+    ],
   },
   {
     id: "e7",
@@ -127,5 +151,10 @@ export const SEED_ENTRIES: Entry[] = [
     isPublic: false,
     capturedAt: "2026-06-12T22:05:00+08:00",
     processedAt: "2026-06-13T08:40:00+08:00",
+    tags: ["认知科学", "空间设计"],
+    coreBullets: [
+      "身体姿态和空间布局会实际影响人怎么思考",
+      "三栏的空间分隔是认知工具，不只是视觉设计",
+    ],
   },
 ];

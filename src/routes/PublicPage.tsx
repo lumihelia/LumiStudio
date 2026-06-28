@@ -17,6 +17,13 @@ export function PublicPage() {
       );
   }, [entries]);
 
+  const relatedTitlesFor = (entryId: string, projectTag: string | null) => {
+    if (!projectTag) return [];
+    return entries
+      .filter((e) => e.id !== entryId && e.projectTag === projectTag)
+      .map((e) => e.title);
+  };
+
   return (
     <PageShell>
       <div className={styles.heading}>
@@ -26,7 +33,13 @@ export function PublicPage() {
       {publicEntries.length === 0 ? (
         <p className={styles.empty}>还没有什么被放到这里。</p>
       ) : (
-        publicEntries.map((entry) => <PublicEntryCard key={entry.id} entry={entry} />)
+        publicEntries.map((entry) => (
+          <PublicEntryCard
+            key={entry.id}
+            entry={entry}
+            relatedTitles={relatedTitlesFor(entry.id, entry.projectTag)}
+          />
+        ))
       )}
     </PageShell>
   );
