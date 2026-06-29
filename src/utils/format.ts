@@ -127,6 +127,9 @@ export function toMarkdown(entries: Entry[]): string {
       if (entry.coreBullets.length > 0) {
         lines.push("**核心观点**", "", ...entry.coreBullets.map((b) => `- ${b}`), "");
       }
+      if (entry.retell) {
+        lines.push("**复述**", "", entry.retell, "");
+      }
       if (entry.tags.length > 0) {
         lines.push(`标签：${entry.tags.join("、")}`, "");
       }

@@ -152,11 +152,8 @@ export function PublicPage() {
               <cite>作者附注</cite>
             </blockquote>
 
-            <ArticleSection number="3." title="大白话重讲">
-              <p>
-                {selectedEntry.relevanceToMe ||
-                  "这条内容不是为了收藏而收藏，而是要判断它到底进入哪个项目、问题或行动。"}
-              </p>
+            <ArticleSection number="3." title="复述">
+              <p>{selectedEntry.retell || "这条材料还没有被复述。"}</p>
             </ArticleSection>
 
             <ArticleSection number="4." title="作者附注">

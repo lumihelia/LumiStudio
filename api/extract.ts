@@ -160,8 +160,9 @@ async function draftWithGemini(
                 relevanceToMe: { type: "STRING" },
                 tags: { type: "ARRAY", items: { type: "STRING" } },
                 coreBullets: { type: "ARRAY", items: { type: "STRING" } },
+                retell: { type: "STRING" },
               },
-              required: ["title", "whatItSays", "relevanceToMe", "tags", "coreBullets"],
+              required: ["title", "whatItSays", "relevanceToMe", "tags", "coreBullets", "retell"],
             },
           },
         }),
@@ -196,7 +197,8 @@ function buildGeminiPrompt(
     "不要替用户做最终判断，不要编造原文没有的信息。可以生成保守摘要、标签和核心点，所有内容之后都由用户确认。",
     "relevanceToMe 只能保守描述「这条材料可能和用户的哪个项目/问题/已有判断相关、为什么」，不要把用户已有的判断或任何外部观点，当成用户对这条新材料已经下的结论直接写进去——那仍然需要用户自己在工作台确认。",
     "如果下面的项目/问题/判断信息和这条材料看不出明显关系，就不要硬扯关系，写清楚这条材料本身是什么即可。",
-    "输出必须是 JSON，字段为 title, whatItSays, relevanceToMe, tags, coreBullets。",
+    "retell 是用口语化、像跟朋友聊天一样的中文，把这条材料的内容重新讲一遍——不是 whatItSays 的同义改写，也不是 coreBullets 的罗列，而是换一种更轻松、更容易听懂的方式讲清楚它在说什么。必须基于材料本身的真实内容，不能编造材料里没有的信息，也不能只写空泛的客套话。",
+    "输出必须是 JSON，字段为 title, whatItSays, relevanceToMe, tags, coreBullets, retell。",
     "",
     `用户输入：${input.rawInput}`,
     `用户当时为什么想收进来：${input.captureNote || "未填写"}`,
@@ -220,6 +222,7 @@ function normalizeGeminiDraft(value: Partial<EntryDraft>, fallback: EntryDraft):
     relevanceToMe: truncate(String(value.relevanceToMe || fallback.relevanceToMe), 360),
     tags: cleanList(value.tags, fallback.tags, 5, 24),
     coreBullets: cleanList(value.coreBullets, fallback.coreBullets, 4, 140),
+    retell: truncate(String(value.retell || fallback.retell), 600),
   };
 }
 

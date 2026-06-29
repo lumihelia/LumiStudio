@@ -26,6 +26,7 @@ export interface Entry {
   processedAt: string | null;
   tags: string[];
   coreBullets: string[];
+  retell: string;
 }
 
 export const SOURCE_TYPE_LABEL: Record<SourceType, string> = {

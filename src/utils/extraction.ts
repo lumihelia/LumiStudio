@@ -32,6 +32,7 @@ export interface EntryDraft {
   relevanceToMe: string;
   tags: string[];
   coreBullets: string[];
+  retell: string;
   wasExtracted?: boolean;
   suggestedProjectTag?: string;
 }
@@ -123,6 +124,7 @@ export function createDraftFromMetadata(
     relevanceToMe,
     tags: compactTags([SOURCE_TYPE_LABEL[sourceType], siteName]),
     coreBullets,
+    retell: "",
     suggestedProjectTag,
   };
 }

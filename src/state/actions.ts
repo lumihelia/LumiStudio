@@ -19,6 +19,7 @@ export type Action =
         nextAction?: string;
         tags?: string[];
         coreBullets?: string[];
+        retell?: string;
         onSettled?: (ok: boolean) => void;
       };
     }

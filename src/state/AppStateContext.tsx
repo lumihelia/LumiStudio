@@ -63,6 +63,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             processedAt: null,
             tags: draft.tags,
             coreBullets: draft.coreBullets,
+            retell: draft.retell,
           };
           supabase
             .from("entries")

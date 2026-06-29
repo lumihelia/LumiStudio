@@ -17,6 +17,7 @@ export interface EntryRow {
   processed_at: string | null;
   tags: string[] | null;
   core_bullets: string[] | null;
+  retell: string;
 }
 
 export function rowToEntry(row: EntryRow): Entry {
@@ -37,6 +38,7 @@ export function rowToEntry(row: EntryRow): Entry {
     processedAt: row.processed_at,
     tags: row.tags ?? [],
     coreBullets: row.core_bullets ?? [],
+    retell: row.retell ?? "",
   };
 }
 
@@ -58,5 +60,6 @@ export function entryToRow(entry: Partial<Entry>): Partial<EntryRow> {
   if (entry.processedAt !== undefined) row.processed_at = entry.processedAt;
   if (entry.tags !== undefined) row.tags = entry.tags;
   if (entry.coreBullets !== undefined) row.core_bullets = entry.coreBullets;
+  if (entry.retell !== undefined) row.retell = entry.retell;
   return row;
 }

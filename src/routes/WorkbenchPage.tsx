@@ -9,7 +9,7 @@ import styles from "./WorkbenchPage.module.css";
 
 const DEFAULT_PROJECT = "LumiStudio 产品阅读";
 
-type ProcessingField = "captureNote" | "whatItSays" | "relevanceToMe" | "judgmentStatement";
+type ProcessingField = "captureNote" | "whatItSays" | "retell" | "relevanceToMe" | "judgmentStatement";
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 const SAVE_STATE_LABEL: Record<SaveState, string> = {
@@ -25,6 +25,7 @@ export function WorkbenchPage() {
   const [draft, setDraft] = useState<Record<ProcessingField, string>>({
     captureNote: "",
     whatItSays: "",
+    retell: "",
     relevanceToMe: "",
     judgmentStatement: "",
   });
@@ -55,6 +56,7 @@ export function WorkbenchPage() {
     setDraft({
       captureNote: selectedEntry.captureNote,
       whatItSays: selectedEntry.whatItSays,
+      retell: selectedEntry.retell,
       relevanceToMe: selectedEntry.relevanceToMe,
       judgmentStatement: selectedEntry.judgmentStatement,
     });
@@ -245,6 +247,18 @@ export function WorkbenchPage() {
                   <li key={bullet}>{bullet}</li>
                 ))}
               </ul>
+            </Section>
+
+            <Section title="复述">
+              <div className={styles.summaryBox}>
+                <textarea
+                  value={draft.retell}
+                  onChange={(event) => setDraft((d) => ({ ...d, retell: event.target.value }))}
+                  onBlur={(event) => commitField("retell", event.target.value)}
+                  aria-label="复述"
+                  placeholder="像跟朋友聊天一样，换种说法把这篇内容重新讲一遍。"
+                />
+              </div>
             </Section>
 
             <Section title="内容预览">
