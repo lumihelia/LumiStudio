@@ -16,7 +16,7 @@ Product thesis (do not relitigate without reason): information only earns the ri
 
 ## Completed
 
-**Round 1 — GitHub repo.** `git init`, public repo `lumihelia/LumiStudio` created and pushed via `gh repo create --push`. `.gitignore` extended to exclude `Helia-Materials/` (personal hackathon reference photos, not a deliverable) and `.claude/settings.local.json` (local-only tool permissions) — both correctly excluded from the public repo. Standing instruction from user: **commit after every round of work** going forward.
+**Round 1 — GitHub repo.** `git init`, public repo `lumihelia/LumiStudio` created and pushed via `gh repo create --push`. `.gitignore` extended to exclude `Helia-Materials/` (personal hackathon reference photos, not a deliverable) and `.claude/settings.local.json` (local-only tool permissions) — both correctly excluded from the public repo. Standing instruction from user: **commit after every round of work** going forward. **Updated after Round 16: push to GitHub (`origin/main`) after every change too, not just commit** — don't leave commits local, every change should land on `origin/main` (which triggers Vercel auto-deploy) before the round is considered done.
 
 **Round 2 — Real backend.**
 - Supabase Postgres table `entries` (snake_case columns, `id text primary key default gen_random_uuid()::text` — **not uuid type**, because seed entries use human-readable ids like `"e1"`). Open RLS policy (`for all using (true) with check (true)`) — no auth, single shared dataset, intentional demo tradeoff.
