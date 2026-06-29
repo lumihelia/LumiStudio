@@ -20,6 +20,13 @@ interface TopicSummary {
 const RELATION_KINDS: RelationKind[] = ["相似的想法", "支撑它的材料", "冲突 / 张力", "延伸出去的问题"];
 const MAX_ENTRIES_PER_CALL = 8;
 
+const RELATION_GUIDANCE: Record<RelationKind, string> = {
+  "相似的想法": "这条材料和当前主题里的另一些想法呼应。先确认它们说的是不是同一件事，再决定要不要合并成一个更稳定的判断。",
+  "支撑它的材料": "这条材料可能为某个判断提供了证据。看清楚它支撑的是哪个具体判断，值得的话就把它接到那个项目里。",
+  "冲突 / 张力": "这条材料和某个已有的想法或判断产生了张力，需要你自己判断站哪边、还是两者都保留——这一步 AI 不会替你做决定。",
+  "延伸出去的问题": "这是材料本身或你长期关心的问题里浮现出的一个开放问题，还没有答案，先记下来即可。",
+};
+
 export function GravityPage() {
   const { entries, dispatch } = useAppState();
   const entriesRef = useRef<Entry[]>(entries);
@@ -112,7 +119,7 @@ export function GravityPage() {
           {topics.length === 0 ? (
             <div className={styles.emptyState}>
               <p>还没有主题。</p>
-              <span>给材料添加标签或项目后，引力台会开始成形。</span>
+              <span>在工作台里把材料接到项目后，引力台会开始成形。</span>
             </div>
           ) : (
             topics.map((topic) => (
@@ -155,10 +162,6 @@ export function GravityPage() {
                   : `探索与"${activeTopic}"相关的想法、张力与支撑材料。`}
             </p>
           </div>
-          <div className={styles.articleTools}>
-            <button type="button" aria-label="保留到稍后">[]</button>
-            <button type="button" aria-label="更多操作">...</button>
-          </div>
         </div>
 
         <div className={styles.laneStack}>
@@ -174,26 +177,26 @@ export function GravityPage() {
                 <h2>{kind}</h2>
               </div>
               <div className={styles.cardRail}>
-                {(grouped[kind] ?? []).map((relation) => (
-                  <button
-                    type="button"
-                    key={relation.id}
-                    className={
-                      relation.id === selectedRelation?.id
-                        ? `${styles.relationCard} ${styles.relationCardActive}`
-                        : styles.relationCard
-                    }
-                    onClick={() => setSelectedRelationId(relation.id)}
-                  >
-                    <strong>{relation.title}</strong>
-                    <span>{relation.description}</span>
-                    <small>{relation.meta}</small>
-                  </button>
-                ))}
-                <button type="button" className={styles.addCard}>
-                  <span>+</span>
-                  {kind === "冲突 / 张力" ? "发现更多张力" : kind === "延伸出去的问题" ? "提出新问题" : "添加更多"}
-                </button>
+                {(grouped[kind] ?? []).length === 0 ? (
+                  <p className={styles.laneEmpty}>还没有发现这类关系。</p>
+                ) : (
+                  (grouped[kind] ?? []).map((relation) => (
+                    <button
+                      type="button"
+                      key={relation.id}
+                      className={
+                        relation.id === selectedRelation?.id
+                          ? `${styles.relationCard} ${styles.relationCardActive}`
+                          : styles.relationCard
+                      }
+                      onClick={() => setSelectedRelationId(relation.id)}
+                    >
+                      <strong>{relation.title}</strong>
+                      <span>{relation.description}</span>
+                      <small>{relation.meta}</small>
+                    </button>
+                  ))
+                )}
               </div>
             </section>
           ))}
@@ -204,7 +207,6 @@ export function GravityPage() {
           <span>支撑材料</span>
           <span>张力冲突</span>
           <span>延伸问题</span>
-          <span>相互关联</span>
         </div>
       </main>
 
@@ -221,28 +223,8 @@ export function GravityPage() {
             <p>{selectedRelation.description}</p>
 
             <div className={styles.detailSection}>
-              <h4>为什么重要</h4>
-              <p>
-                它决定这条材料是进入判断、支撑项目，还是先作为一个没有想清楚的问题保留下来。
-              </p>
-            </div>
-
-            <div className={styles.detailSection}>
-              <h4>对我有什么影响</h4>
-              <ul>
-                <li>影响工作台里材料的下一步动作。</li>
-                <li>影响公开页里哪些内容可以被 agents 读取。</li>
-                <li>影响长期主题是否形成稳定判断。</li>
-              </ul>
-            </div>
-
-            <div className={styles.detailSection}>
-              <h4>可以怎么处理</h4>
-              <ul>
-                <li>保留关系，但等待用户确认。</li>
-                <li>接到项目里，作为后续写作或任务线索。</li>
-                <li>如果仍不清楚，就先放着。</li>
-              </ul>
+              <h4>怎么处理</h4>
+              <p>{RELATION_GUIDANCE[selectedRelation.kind]}</p>
             </div>
 
             <div className={styles.actionGrid}>
@@ -281,8 +263,6 @@ export function GravityPage() {
               >
                 写成一段
               </button>
-              <button type="button">形成原则</button>
-              <button type="button">先放着</button>
             </div>
 
             <Link to="/workbench">查看更多相关关系 →</Link>
@@ -290,7 +270,7 @@ export function GravityPage() {
         ) : (
           <div className={styles.emptyState}>
             <p>还没有可查看的关系。</p>
-            <span>先在工作台里接到项目或添加标签。</span>
+            <span>先在工作台里把材料接到项目。</span>
           </div>
         )}
       </aside>
@@ -301,13 +281,11 @@ export function GravityPage() {
 function buildTopics(entries: Entry[]): TopicSummary[] {
   const counts = new Map<string, { count: number; descriptions: Set<string> }>();
   for (const entry of entries) {
-    const keys = [entry.projectTag, ...entry.tags].filter(Boolean) as string[];
-    for (const key of keys) {
-      const item = counts.get(key) ?? { count: 0, descriptions: new Set<string>() };
-      item.count += 1;
-      item.descriptions.add(entry.coreBullets[0] || entry.whatItSays || entry.captureNote);
-      counts.set(key, item);
-    }
+    if (!entry.projectTag) continue;
+    const item = counts.get(entry.projectTag) ?? { count: 0, descriptions: new Set<string>() };
+    item.count += 1;
+    item.descriptions.add(entry.coreBullets[0] || entry.whatItSays || entry.captureNote);
+    counts.set(entry.projectTag, item);
   }
 
   return Array.from(counts.entries())
@@ -323,9 +301,7 @@ function buildTopics(entries: Entry[]): TopicSummary[] {
 }
 
 function selectTopicEntries(topic: string, entries: Entry[]): Entry[] {
-  const topicEntries = entries.filter(
-    (entry) => entry.projectTag === topic || entry.tags.includes(topic)
-  );
+  const topicEntries = entries.filter((entry) => entry.projectTag === topic);
   const source = topicEntries.length > 0 ? topicEntries : entries.slice(0, MAX_ENTRIES_PER_CALL);
   return source.slice(0, MAX_ENTRIES_PER_CALL);
 }

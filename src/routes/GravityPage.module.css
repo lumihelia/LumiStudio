@@ -174,19 +174,6 @@
   color: var(--muted-color);
 }
 
-.articleTools {
-  display: flex;
-  gap: var(--space-1);
-}
-
-.articleTools button {
-  border: none;
-  background: transparent;
-  color: var(--primary-color);
-  font-family: var(--font-mono);
-  padding: var(--space-1);
-}
-
 .laneStack {
   max-width: 840px;
   margin: 0 auto;
@@ -241,12 +228,17 @@
 
 .cardRail {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: var(--space-2);
 }
 
-.relationCard,
-.addCard {
+.laneEmpty {
+  color: var(--muted-color);
+  font-size: 0.9rem;
+  padding: var(--space-2) 0;
+}
+
+.relationCard {
   min-height: calc(var(--space-12) + var(--space-1));
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
@@ -283,19 +275,6 @@
 .relationCard small {
   color: var(--muted-color);
   font-size: 0.82rem;
-}
-
-.addCard {
-  display: grid;
-  place-items: center;
-  color: var(--primary-color);
-  text-align: center;
-  background: color-mix(in srgb, var(--white) 72%, var(--input-bg));
-}
-
-.addCard span {
-  font-size: 2rem;
-  line-height: 1;
 }
 
 .legend {
