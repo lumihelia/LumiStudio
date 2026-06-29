@@ -259,13 +259,6 @@ export function GravityPage() {
                       projectTag: activeTopic,
                     },
                   });
-                  dispatch({
-                    type: "ROUTE_ENTRY",
-                    payload: {
-                      id: sourceEntry.id,
-                      destination: "connected",
-                    },
-                  });
                 }}
               >
                 接到项目里

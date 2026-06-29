@@ -5,7 +5,6 @@ export type LifecycleStatus =
   | "extracted"
   | "reviewed"
   | "parked"
-  | "connected"
   | "published"
   | "discarded";
 
@@ -27,6 +26,8 @@ export interface Entry {
   tags: string[];
   coreBullets: string[];
   retell: string;
+  publishCaptureNote: boolean;
+  publishRelevanceToMe: boolean;
 }
 
 export const SOURCE_TYPE_LABEL: Record<SourceType, string> = {
@@ -42,7 +43,6 @@ export const STATUS_LABEL: Record<LifecycleStatus, string> = {
   extracted: "系统已解析出内容",
   reviewed: "人类已编辑确认",
   parked: "先放着了",
-  connected: "连接到项目里了",
   published: "已经放到公开页",
   discarded: "已从界面移除",
 };
@@ -52,7 +52,6 @@ export const STATUS_SHORT_LABEL: Record<LifecycleStatus, string> = {
   extracted: "已解析",
   reviewed: "已确认",
   parked: "先放着",
-  connected: "已接入项目",
   published: "已公开",
   discarded: "已移除",
 };

@@ -4,7 +4,8 @@ import { Link } from "react-router-dom";
 import type { Entry } from "../data/types";
 import { SOURCE_TYPE_LABEL, isPublishedEntry } from "../data/types";
 import { useAppState } from "../state/useAppState";
-import { formatDate } from "../utils/format";
+import { formatDate, toPublicView } from "../utils/format";
+import type { PublicView } from "../utils/format";
 import styles from "./PublicPage.module.css";
 
 export function PublicPage() {
@@ -23,6 +24,7 @@ export function PublicPage() {
 
   const selectedEntry =
     publicEntries.find((entry) => entry.id === selectedId) ?? publicEntries[0] ?? null;
+  const view = useMemo(() => (selectedEntry ? toPublicView(selectedEntry) : null), [selectedEntry]);
 
   useEffect(() => {
     if (publicEntries.length === 0) {
@@ -106,70 +108,33 @@ export function PublicPage() {
       </aside>
 
       <main className={styles.readingPane} aria-label="公开阅读页">
-        {!selectedEntry ? (
+        {!selectedEntry || !view ? (
           <div className={styles.readingEmpty}>
             <h1>公开页还空着</h1>
             <p>公开页只展示已经由用户确认、可以给人和 agents 读取的对象。</p>
           </div>
         ) : (
           <article className={styles.article}>
-            <div className={styles.breadcrumb}>公开页 / {selectedEntry.projectTag || "知识对象"}</div>
+            <div className={styles.breadcrumb}>公开页 / {view.projectTag || "知识对象"}</div>
             <div className={styles.articleTools}>
               <button type="button" aria-label="收藏">[]</button>
               <button type="button" aria-label="更多操作">...</button>
             </div>
-            <h1>{selectedEntry.title}</h1>
+            <h1>{view.title}</h1>
             <div className={styles.metaLine}>
-              <span>来源：{selectedEntry.origin || SOURCE_TYPE_LABEL[selectedEntry.sourceType]}</span>
+              <span>来源：{view.origin || SOURCE_TYPE_LABEL[view.sourceType]}</span>
               <span>作者：用户确认</span>
               <span>标签：{displayTags(selectedEntry).join(" / ")}</span>
-              <span>更新时间：{formatDate(selectedEntry.processedAt ?? selectedEntry.capturedAt)}</span>
+              <span>更新时间：{formatDate(view.processedAt ?? view.capturedAt)}</span>
             </div>
 
-            <p className={styles.lead}>
-              {selectedEntry.judgmentStatement ||
-                selectedEntry.relevanceToMe ||
-                "这是一条已经公开的知识对象，但还需要补上更明确的作者判断。"}
-            </p>
+            {view.judgmentStatement && <p className={styles.lead}>{view.judgmentStatement}</p>}
 
-            <ArticleSection number="1." title="这篇内容讲了什么">
-              <p>{selectedEntry.whatItSays || "原材料摘要还没有被补全。"}</p>
-            </ArticleSection>
-
-            <ArticleSection number="2." title="核心观点">
-              <ul>
-                {coreBulletsFor(selectedEntry).map((bullet) => (
-                  <li key={bullet}>{bullet}</li>
-                ))}
-              </ul>
-            </ArticleSection>
-
-            <blockquote>
-              <p>
-                {selectedEntry.judgmentStatement ||
-                  "长期判断需要被确认、更新，并留下可被追溯的来源。"}
-              </p>
-              <cite>作者附注</cite>
-            </blockquote>
-
-            <ArticleSection number="3." title="复述">
-              <p>{selectedEntry.retell || "这条材料还没有被复述。"}</p>
-            </ArticleSection>
-
-            <ArticleSection number="4." title="作者附注">
-              <p>
-                {selectedEntry.captureNote ||
-                  "这里保留用户当时为什么想收进来的原始想法，和 AI 整理出的摘要分开。"}
-              </p>
-            </ArticleSection>
-
-            <ArticleSection number="5." title="相关判断">
-              <div className={styles.claimBox}>
-                <span>我判断：</span>
-                {selectedEntry.judgmentStatement ||
-                  "这条公开对象还没有形成一句足够稳定的判断。"}
-              </div>
-            </ArticleSection>
+            {buildArticleSections(view).map((section, index) => (
+              <ArticleSection key={section.title} number={`${index + 1}.`} title={section.title}>
+                {section.body}
+              </ArticleSection>
+            ))}
 
             <section className={styles.relatedBox}>
               <div className={styles.relatedHeader}>
@@ -192,15 +157,15 @@ export function PublicPage() {
       </main>
 
       <aside className={styles.infoPane} aria-label="页面信息">
-        {selectedEntry ? (
+        {selectedEntry && view ? (
           <>
             <InfoPanel title="页面信息">
               <InfoRow label="页面类型" value="知识页面" />
               <InfoRow label="页面 ID" value={`pub_${selectedEntry.id.slice(0, 12)}`} />
-              <InfoRow label="创建时间" value={formatDate(selectedEntry.capturedAt)} />
-              <InfoRow label="最后更新" value={formatDate(selectedEntry.processedAt ?? selectedEntry.capturedAt)} />
-              <InfoRow label="字数统计" value={`${articleLength(selectedEntry)} 字`} />
-              <InfoRow label="阅读时长" value={`约 ${Math.max(1, Math.ceil(articleLength(selectedEntry) / 450))} 分钟`} />
+              <InfoRow label="创建时间" value={formatDate(view.capturedAt)} />
+              <InfoRow label="最后更新" value={formatDate(view.processedAt ?? view.capturedAt)} />
+              <InfoRow label="字数统计" value={`${articleLength(view)} 字`} />
+              <InfoRow label="阅读时长" value={`约 ${Math.max(1, Math.ceil(articleLength(view) / 450))} 分钟`} />
             </InfoPanel>
 
             <InfoPanel title="公开状态">
@@ -298,23 +263,50 @@ function displayTags(entry: Entry): string[] {
   return entry.tags.length > 0 ? entry.tags.slice(0, 4) : [SOURCE_TYPE_LABEL[entry.sourceType]];
 }
 
-function coreBulletsFor(entry: Entry): string[] {
-  if (entry.coreBullets.length > 0) return entry.coreBullets.slice(0, 4);
-  return [
-    entry.whatItSays || "原材料本身需要先被讲清楚。",
-    entry.relevanceToMe || "用户需要确认它为什么和自己有关。",
-    entry.judgmentStatement || "公开判断必须和来源、AI 整理、作者附注分开。",
+// Each section only appears when its content actually exists — an entry with
+// nothing written in a given field simply has fewer sections, never a
+// placeholder. Numbering is derived from this list's order, not hardcoded.
+function buildArticleSections(view: PublicView): Array<{ title: string; body: ReactNode }> {
+  const sections: Array<{ title: string; body: ReactNode } | null> = [
+    view.whatItSays ? { title: "这篇内容讲了什么", body: <p>{view.whatItSays}</p> } : null,
+    view.coreBullets.length > 0
+      ? {
+          title: "核心观点",
+          body: (
+            <ul>
+              {view.coreBullets.slice(0, 4).map((bullet) => (
+                <li key={bullet}>{bullet}</li>
+              ))}
+            </ul>
+          ),
+        }
+      : null,
+    view.retell ? { title: "复述", body: <p>{view.retell}</p> } : null,
+    view.relevanceToMe ? { title: "这和我的关系", body: <p>{view.relevanceToMe}</p> } : null,
+    view.captureNote ? { title: "作者附注", body: <p>{view.captureNote}</p> } : null,
+    view.judgmentStatement
+      ? {
+          title: "相关判断",
+          body: (
+            <div className={styles.claimBox}>
+              <span>我判断：</span>
+              {view.judgmentStatement}
+            </div>
+          ),
+        }
+      : null,
   ];
+  return sections.filter((section): section is { title: string; body: ReactNode } => section !== null);
 }
 
-function articleLength(entry: Entry): number {
+function articleLength(view: PublicView): number {
   return [
-    entry.title,
-    entry.whatItSays,
-    entry.relevanceToMe,
-    entry.judgmentStatement,
-    entry.captureNote,
-    entry.coreBullets.join(""),
+    view.title,
+    view.whatItSays ?? "",
+    view.relevanceToMe ?? "",
+    view.judgmentStatement ?? "",
+    view.captureNote ?? "",
+    view.coreBullets.join(""),
   ].join("").length;
 }
 

@@ -18,6 +18,8 @@ export interface EntryRow {
   tags: string[] | null;
   core_bullets: string[] | null;
   retell: string;
+  publish_capture_note: boolean;
+  publish_relevance_to_me: boolean;
 }
 
 export function rowToEntry(row: EntryRow): Entry {
@@ -39,6 +41,8 @@ export function rowToEntry(row: EntryRow): Entry {
     tags: row.tags ?? [],
     coreBullets: row.core_bullets ?? [],
     retell: row.retell ?? "",
+    publishCaptureNote: row.publish_capture_note ?? false,
+    publishRelevanceToMe: row.publish_relevance_to_me ?? false,
   };
 }
 
@@ -61,5 +65,7 @@ export function entryToRow(entry: Partial<Entry>): Partial<EntryRow> {
   if (entry.tags !== undefined) row.tags = entry.tags;
   if (entry.coreBullets !== undefined) row.core_bullets = entry.coreBullets;
   if (entry.retell !== undefined) row.retell = entry.retell;
+  if (entry.publishCaptureNote !== undefined) row.publish_capture_note = entry.publishCaptureNote;
+  if (entry.publishRelevanceToMe !== undefined) row.publish_relevance_to_me = entry.publishRelevanceToMe;
   return row;
 }

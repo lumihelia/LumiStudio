@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import type { Entry } from "../data/types";
 import { useAppState } from "../state/useAppState";
 import { isPublishedEntry } from "../data/types";
-import { formatRelative } from "../utils/format";
+import { formatRelative, toPublicView } from "../utils/format";
 import styles from "./AgentOutputPage.module.css";
 
 type FeedFilter = "全部更新" | "我的订阅" | "来自关注" | "系统推荐";
@@ -239,50 +239,53 @@ function Stat({ value, label }: { value: number; label: string }) {
 function buildFeedItems(entries: Entry[]): FeedItem[] {
   return entries
     .flatMap((entry) => {
-      const updatedAt = entry.processedAt ?? entry.capturedAt;
-      const tags = entry.tags.length > 0 ? entry.tags : [entry.projectTag ?? "公开对象"];
+      const view = toPublicView(entry);
+      const updatedAt = view.processedAt ?? view.capturedAt;
+      const tags = view.tags.length > 0 ? view.tags : [view.projectTag ?? "公开对象"];
       const items: FeedItem[] = [];
 
-      if (entry.relevanceToMe || entry.captureNote) {
+      if (view.relevanceToMe || view.captureNote) {
         items.push({
           id: `${entry.id}-author-note`,
           type: "author_note",
-          title: entry.title,
-          summary: entry.relevanceToMe || entry.captureNote,
+          title: view.title,
+          summary: (view.relevanceToMe || view.captureNote) as string,
           tags,
-          source: entry.origin || "LumiStudio Blog",
+          source: view.origin || "LumiStudio Blog",
           updatedAt,
         });
       }
 
-      if (entry.judgmentStatement) {
+      if (view.judgmentStatement) {
         items.push({
           id: `${entry.id}-claim`,
           type: "claim",
-          title: entry.title,
-          summary: entry.judgmentStatement,
+          title: view.title,
+          summary: view.judgmentStatement,
           tags,
-          source: entry.origin || "LumiStudio Blog",
+          source: view.origin || "LumiStudio Blog",
           updatedAt,
         });
       }
 
-      items.push({
-        id: `${entry.id}-interpretation`,
-        type: "interpretation",
-        title: entry.title,
-        summary: entry.whatItSays || "这条公开对象还在补充解读。",
-        tags,
-        source: entry.origin || "LumiStudio Blog",
-        updatedAt,
-      });
+      if (view.whatItSays) {
+        items.push({
+          id: `${entry.id}-interpretation`,
+          type: "interpretation",
+          title: view.title,
+          summary: view.whatItSays,
+          tags,
+          source: view.origin || "LumiStudio Blog",
+          updatedAt,
+        });
+      }
 
-      if (entry.nextAction || entry.projectTag) {
+      if (entry.nextAction) {
         items.push({
           id: `${entry.id}-method`,
           type: "method",
-          title: `${entry.projectTag || "项目"} 实践指南`,
-          summary: entry.nextAction || "这条材料已经被接到项目中，等待下一步处理。",
+          title: `${view.projectTag || "项目"} 实践指南`,
+          summary: entry.nextAction,
           tags,
           source: "Agent 实验室",
           updatedAt,

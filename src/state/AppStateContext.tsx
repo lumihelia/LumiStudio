@@ -64,6 +64,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             tags: draft.tags,
             coreBullets: draft.coreBullets,
             retell: draft.retell,
+            publishCaptureNote: false,
+            publishRelevanceToMe: false,
           };
           supabase
             .from("entries")
@@ -82,7 +84,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             break;
           }
           const nextStatus =
-            existing && (existing.status === "published" || existing.status === "connected")
+            existing && existing.status === "published"
               ? existing.status
               : "reviewed";
           supabase

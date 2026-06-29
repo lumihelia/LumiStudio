@@ -30,6 +30,7 @@ export function WorkbenchPage() {
     judgmentStatement: "",
   });
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [discardConfirming, setDiscardConfirming] = useState(false);
 
   const sortedEntries = useMemo(() => {
     return [...entries].sort((a, b) => {
@@ -61,6 +62,7 @@ export function WorkbenchPage() {
       judgmentStatement: selectedEntry.judgmentStatement,
     });
     setSaveState("idle");
+    setDiscardConfirming(false);
     // Only re-sync when switching to a different entry - the 3s poll must not
     // clobber text the user is mid-typing in the same entry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,7 +95,7 @@ export function WorkbenchPage() {
     });
   };
 
-  const routeSelected = (destination: "published" | "connected" | "parked") => {
+  const routeSelected = (destination: "published" | "parked") => {
     if (!selectedEntry) return;
     dispatch({ type: "ROUTE_ENTRY", payload: { id: selectedEntry.id, destination } });
   };
@@ -297,6 +299,14 @@ export function WorkbenchPage() {
         ) : (
           <div className={styles.sideStack}>
             <Panel title="刚刚想到" eyebrow="想法">
+              <label className={styles.publishToggle}>
+                <input
+                  type="checkbox"
+                  checked={selectedEntry.publishCaptureNote}
+                  onChange={(event) => updateSelected({ publishCaptureNote: event.target.checked })}
+                />
+                公开这条——勾选后才会出现在公开页，留空或不勾选都不会
+              </label>
               <textarea
                 value={draft.captureNote}
                 onChange={(event) => setDraft((d) => ({ ...d, captureNote: event.target.value }))}
@@ -308,6 +318,14 @@ export function WorkbenchPage() {
             </Panel>
 
             <Panel title="和我有什么关系" eyebrow="关系">
+              <label className={styles.publishToggle}>
+                <input
+                  type="checkbox"
+                  checked={selectedEntry.publishRelevanceToMe}
+                  onChange={(event) => updateSelected({ publishRelevanceToMe: event.target.checked })}
+                />
+                公开这条——勾选后才会出现在公开页，留空或不勾选都不会
+              </label>
               <textarea
                 value={draft.relevanceToMe}
                 onChange={(event) => setDraft((d) => ({ ...d, relevanceToMe: event.target.value }))}
@@ -360,49 +378,34 @@ export function WorkbenchPage() {
               />
             </Panel>
 
-            <Panel title="下一步" eyebrow="行动">
-              <div className={styles.actionGrid}>
-                <button
-                  type="button"
-                  className={styles.primaryAction}
-                  onClick={() => {
-                    updateSelected({ projectTag: selectedEntry.projectTag || DEFAULT_PROJECT });
-                    routeSelected("connected");
-                  }}
-                >
-                  接到项目里
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const prefill = draft.judgmentStatement || draft.relevanceToMe || draft.whatItSays;
-                    setDraft((d) => ({ ...d, judgmentStatement: prefill }));
-                    commitField("judgmentStatement", prefill);
-                  }}
-                >
-                  写成一段
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateSelected({ nextAction: "变成任务" })}
-                >
-                  变成任务
-                </button>
-                <button
-                  type="button"
-                  disabled={!draft.judgmentStatement.trim()}
-                  onClick={publishSelected}
-                >
-                  放到公开页
-                </button>
-              </div>
+            <Panel title="这条材料的去处" eyebrow="行动">
               <button
                 type="button"
-                className={styles.fullWidthAction}
-                onClick={() => routeSelected("parked")}
+                className={styles.actionPrimary}
+                disabled={!draft.judgmentStatement.trim()}
+                onClick={publishSelected}
               >
-                先放着
+                {selectedEntry.status === "published" ? "更新公开页" : "放到公开页"}
               </button>
+              <div className={styles.fateRow}>
+                <button type="button" onClick={() => routeSelected("parked")}>
+                  先放着
+                </button>
+                <button
+                  type="button"
+                  className={discardConfirming ? styles.discardConfirming : styles.discardAction}
+                  onClick={() => {
+                    if (discardConfirming) {
+                      discardEntry(selectedEntry.id);
+                      return;
+                    }
+                    setDiscardConfirming(true);
+                    window.setTimeout(() => setDiscardConfirming(false), 4000);
+                  }}
+                >
+                  {discardConfirming ? "确定不留？" : "不留了"}
+                </button>
+              </div>
             </Panel>
           </div>
         )}

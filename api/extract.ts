@@ -14,10 +14,12 @@ const MAX_INPUT_LENGTH = 5000;
 const MAX_PAGE_LENGTH = 900000;
 const FETCH_TIMEOUT_MS = 6500;
 const GEMINI_TIMEOUT_MS = 8000;
+const VERIFY_TIMEOUT_MS = 6000;
 
-// Metadata fetch + Gemini call run sequentially and can together approach
-// 15s worst-case; Vercel's default function timeout is 10s on most plans,
-// which would kill the whole request before either timeout fires.
+// Metadata fetch + Gemini draft + Gemini verification run sequentially and
+// can together approach 20.5s worst-case (6.5s + 8s + 6s); Vercel's default
+// function timeout is 10s on most plans, which would kill the whole request
+// before any of these timeouts fire on their own.
 export const config = {
   maxDuration: 30,
 };
@@ -71,8 +73,13 @@ export async function extractDraftForInput(input: CaptureInput): Promise<{
   let draft = createDraftFromMetadata(input, metadata);
   const geminiDraft = await draftWithGemini(input, metadata, draft);
   if (geminiDraft) {
-    draft = geminiDraft;
-    mode = "gemini";
+    const verified = await verifyGeminiDraft(input, metadata, geminiDraft);
+    if (verified) {
+      draft = geminiDraft;
+      mode = "gemini";
+    } else {
+      console.error("Gemini draft failed verification, falling back", { rawInput: input.rawInput.slice(0, 200) });
+    }
   }
 
   draft.wasExtracted = mode !== "fallback";
@@ -211,6 +218,89 @@ function buildGeminiPrompt(
     `用户当前在做的项目：${myContext?.currentProjects.join("；") || "未提供"}`,
     `用户长期关心的问题：${myContext?.activeQuestions.join("；") || "未提供"}`,
     `用户已有的判断（仅供参考用户关心什么，不代表用户对这条新材料的判断）：${myContext?.existingClaims.join("；") || "未提供"}`,
+  ].join("\n");
+}
+
+// Independent second pass: re-checks the draft against the original material
+// with a fresh prompt, instead of trusting the generating call's own
+// confidence. A draft that fails this never reaches the workbench — the
+// deterministic metadata/fallback draft is used instead. No auto-correction
+// in this version; see memory.md for why.
+async function verifyGeminiDraft(
+  input: CaptureInput,
+  metadata: ExtractedMetadata,
+  draft: EntryDraft
+): Promise<boolean> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return false;
+
+  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": key,
+        },
+        body: JSON.stringify({
+          contents: [
+            { role: "user", parts: [{ text: buildVerificationPrompt(input, metadata, draft) }] },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: { ok: { type: "BOOLEAN" } },
+              required: ["ok"],
+            },
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      console.error("Gemini verification failed", response.status, await response.text());
+      return false;
+    }
+    const data = (await response.json()) as GeminiGenerateContentResponse;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    if (!text) return false;
+    const parsed = JSON.parse(text) as { ok?: unknown };
+    return parsed.ok === true;
+  } catch (error) {
+    console.error("Gemini verification failed", error);
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function buildVerificationPrompt(
+  input: CaptureInput,
+  metadata: ExtractedMetadata,
+  draft: EntryDraft
+): string {
+  return [
+    "你是 LumiStudio 的事实核查员，要独立检查另一次 AI 调用生成的材料草稿是否可信。不要重新生成草稿，只回答这份草稿能不能用。",
+    "判断标准——草稿里的每一句话，是否都能在下面的原始材料里找到依据，没有编造原文没有的内容；retell 是否只是用口语重新讲了一遍材料本身，没有夹带原文没有的判断；relevanceToMe 是否只是保守地猜测相关性，没有把任何已有判断当成对这条新材料的确定结论。",
+    "只要有一处明显编造或明显失实，就判定不可信。如果只是表达方式不同但内容忠实，判定可信。",
+    "输出 JSON，字段为 ok（boolean）。",
+    "",
+    `原始材料——用户输入：${input.rawInput}`,
+    `原始材料——用户当时为什么想收进来：${input.captureNote || "未填写"}`,
+    `原始材料——抓到的描述：${metadata.description || ""}`,
+    `原始材料——抓到的正文片段：${metadata.textSnippet || ""}`,
+    "",
+    `待核查草稿——whatItSays：${draft.whatItSays}`,
+    `待核查草稿——coreBullets：${draft.coreBullets.join("；")}`,
+    `待核查草稿——retell：${draft.retell}`,
+    `待核查草稿——relevanceToMe：${draft.relevanceToMe}`,
   ].join("\n");
 }
 

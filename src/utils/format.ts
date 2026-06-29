@@ -20,6 +20,44 @@ export function formatRelative(iso: string): string {
   return `${diffDays} 天前`;
 }
 
+export interface PublicView {
+  title: string;
+  origin: string;
+  sourceType: Entry["sourceType"];
+  tags: string[];
+  coreBullets: string[];
+  projectTag: string | null;
+  capturedAt: string;
+  processedAt: string | null;
+  whatItSays: string | null;
+  retell: string | null;
+  judgmentStatement: string | null;
+  captureNote: string | null;
+  relevanceToMe: string | null;
+}
+
+// The single allowlist every public-facing renderer (PublicPage, the agent
+// feed formats, AgentOutputPage) must go through. captureNote/relevanceToMe
+// only surface when the user has explicitly opted that field into public —
+// writing something there does not make it public by itself.
+export function toPublicView(entry: Entry): PublicView {
+  return {
+    title: entry.title,
+    origin: entry.origin,
+    sourceType: entry.sourceType,
+    tags: entry.tags,
+    coreBullets: entry.coreBullets,
+    projectTag: entry.projectTag,
+    capturedAt: entry.capturedAt,
+    processedAt: entry.processedAt,
+    whatItSays: entry.whatItSays || null,
+    retell: entry.retell || null,
+    judgmentStatement: entry.judgmentStatement || null,
+    captureNote: entry.publishCaptureNote && entry.captureNote ? entry.captureNote : null,
+    relevanceToMe: entry.publishRelevanceToMe && entry.relevanceToMe ? entry.relevanceToMe : null,
+  };
+}
+
 export interface AgentRelation {
   type: "relates";
   to: string;
@@ -60,44 +98,42 @@ export interface AgentEntry {
 }
 
 export function toAgentShape(entry: Entry, allPublicEntries: Entry[]): AgentEntry {
-  const relations: AgentRelation[] = entry.projectTag
+  const view = toPublicView(entry);
+  const relations: AgentRelation[] = view.projectTag
     ? allPublicEntries
-        .filter((e) => e.id !== entry.id && e.projectTag === entry.projectTag)
+        .filter((e) => e.id !== entry.id && e.projectTag === view.projectTag)
         .map((e) => ({ type: "relates" as const, to: e.title }))
     : [];
 
   return {
     object_type: "material",
-    title: entry.title,
-    source: entry.origin,
-    source_type: entry.sourceType,
+    title: view.title,
+    source: view.origin,
+    source_type: view.sourceType,
     visibility: "public",
-    summary: entry.whatItSays,
-    author_note: entry.relevanceToMe,
-    claims: entry.judgmentStatement ? [entry.judgmentStatement] : [],
+    summary: view.whatItSays ?? "",
+    author_note: view.relevanceToMe ?? "",
+    claims: view.judgmentStatement ? [view.judgmentStatement] : [],
     questions: [],
-    related_topics: entry.tags,
+    related_topics: view.tags,
     relations,
     status: entry.status,
-    updated_at: entry.processedAt,
+    updated_at: view.processedAt,
     markdown_url: `/agent?format=markdown#${entry.id}`,
     json_url: `/agent?format=json#${entry.id}`,
     objects: compactAgentObjects([
-      { object_type: "material", text: entry.origin, status: entry.status },
-      entry.captureNote
-        ? { object_type: "thought", text: entry.captureNote, status: "user-authored" }
+      { object_type: "material", text: view.origin, status: entry.status },
+      view.captureNote
+        ? { object_type: "thought", text: view.captureNote, status: "user-authored" }
         : null,
-      entry.whatItSays
-        ? { object_type: "interpretation", text: entry.whatItSays, status: "draft" }
+      view.whatItSays
+        ? { object_type: "interpretation", text: view.whatItSays, status: "draft" }
         : null,
-      entry.relevanceToMe
-        ? { object_type: "author_note", text: entry.relevanceToMe, status: "user-confirmed" }
+      view.relevanceToMe
+        ? { object_type: "author_note", text: view.relevanceToMe, status: "user-confirmed" }
         : null,
-      entry.judgmentStatement
-        ? { object_type: "claim", text: entry.judgmentStatement, status: "public" }
-        : null,
-      entry.nextAction
-        ? { object_type: "action", text: entry.nextAction, status: "next" }
+      view.judgmentStatement
+        ? { object_type: "claim", text: view.judgmentStatement, status: "public" }
         : null,
     ]),
   };
@@ -113,30 +149,33 @@ export function toMarkdown(entries: Entry[]): string {
   }
   return entries
     .map((entry) => {
-      const lines = [
-        `## ${entry.title}`,
-        "",
-        `> ${entry.judgmentStatement}`,
-        "",
-        entry.relevanceToMe,
-        "",
-      ];
-      if (entry.whatItSays) {
-        lines.push("**这篇讲了什么**", "", entry.whatItSays, "");
+      const view = toPublicView(entry);
+      const lines = [`## ${view.title}`, ""];
+      if (view.judgmentStatement) {
+        lines.push(`> ${view.judgmentStatement}`, "");
       }
-      if (entry.coreBullets.length > 0) {
-        lines.push("**核心观点**", "", ...entry.coreBullets.map((b) => `- ${b}`), "");
+      if (view.whatItSays) {
+        lines.push("**这篇讲了什么**", "", view.whatItSays, "");
       }
-      if (entry.retell) {
-        lines.push("**复述**", "", entry.retell, "");
+      if (view.coreBullets.length > 0) {
+        lines.push("**核心观点**", "", ...view.coreBullets.map((b) => `- ${b}`), "");
       }
-      if (entry.tags.length > 0) {
-        lines.push(`标签：${entry.tags.join("、")}`, "");
+      if (view.retell) {
+        lines.push("**复述**", "", view.retell, "");
+      }
+      if (view.relevanceToMe) {
+        lines.push("**这和我的关系**", "", view.relevanceToMe, "");
+      }
+      if (view.captureNote) {
+        lines.push("**作者附注**", "", view.captureNote, "");
+      }
+      if (view.tags.length > 0) {
+        lines.push(`标签：${view.tags.join("、")}`, "");
       }
       lines.push(
-        `来源：${SOURCE_TYPE_LABEL[entry.sourceType]} · ${entry.origin}${
-          entry.projectTag ? ` · ${entry.projectTag}` : ""
-        } · ${formatDate(entry.processedAt)}`
+        `来源：${SOURCE_TYPE_LABEL[view.sourceType]} · ${view.origin}${
+          view.projectTag ? ` · ${view.projectTag}` : ""
+        } · ${formatDate(view.processedAt)}`
       );
       return lines.join("\n");
     })
@@ -148,18 +187,19 @@ const SITE_URL = "https://studio.lumihelia.com";
 export function toRssFeed(entries: Entry[]): string {
   const items = entries
     .map((entry) => {
-      const description = [entry.judgmentStatement, entry.whatItSays, entry.relevanceToMe]
+      const view = toPublicView(entry);
+      const description = [view.judgmentStatement, view.whatItSays, view.retell]
         .filter(Boolean)
         .join("\n\n");
-      const pubDate = new Date(entry.processedAt ?? entry.capturedAt).toUTCString();
+      const pubDate = new Date(view.processedAt ?? view.capturedAt).toUTCString();
       return [
         "<item>",
-        `<title>${escapeXml(entry.title)}</title>`,
+        `<title>${escapeXml(view.title)}</title>`,
         `<link>${escapeXml(SITE_URL)}/public</link>`,
         `<guid isPermaLink="false">${escapeXml(entry.id)}</guid>`,
         `<pubDate>${pubDate}</pubDate>`,
         `<description>${escapeXml(description || "这条公开对象还没有形成摘要。")}</description>`,
-        ...entry.tags.map((tag) => `<category>${escapeXml(tag)}</category>`),
+        ...view.tags.map((tag) => `<category>${escapeXml(tag)}</category>`),
         "</item>",
       ].join("\n");
     })

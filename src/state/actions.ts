@@ -1,6 +1,6 @@
 import type { EntryDraft } from "../utils/extraction";
 
-export type RouteDestination = "published" | "connected" | "parked";
+export type RouteDestination = "published" | "parked";
 
 export type Action =
   | {
@@ -20,6 +20,8 @@ export type Action =
         tags?: string[];
         coreBullets?: string[];
         retell?: string;
+        publishCaptureNote?: boolean;
+        publishRelevanceToMe?: boolean;
         onSettled?: (ok: boolean) => void;
       };
     }
