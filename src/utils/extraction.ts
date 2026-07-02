@@ -12,6 +12,9 @@ export interface CaptureInput {
   captureNote: string;
   sourceType: SourceType;
   myContext?: CaptureMyContext;
+  // Internal flags set server-side during input resolution — never sent from client
+  _skipUrlFetch?: boolean;
+  _presetTitle?: string;
 }
 
 export interface ExtractedMetadata {
@@ -38,6 +41,46 @@ export interface EntryDraft {
 }
 
 const URL_PATTERN = /https?:\/\/[^\s"'<>，。；、]+/i;
+
+const YOUTUBE_PATTERNS = [
+  /youtube\.com\/watch\?(?:[^&]*&)*v=([A-Za-z0-9_-]{11})/,
+  /youtu\.be\/([A-Za-z0-9_-]{11})/,
+  /youtube\.com\/shorts\/([A-Za-z0-9_-]{11})/,
+  /youtube\.com\/embed\/([A-Za-z0-9_-]{11})/,
+];
+
+export function isYouTubeUrl(value: string): boolean {
+  const url = value.trim();
+  return YOUTUBE_PATTERNS.some((p) => p.test(url));
+}
+
+export function extractYouTubeVideoId(value: string): string | null {
+  const url = value.trim();
+  for (const pattern of YOUTUBE_PATTERNS) {
+    const m = url.match(pattern);
+    if (m?.[1]) return m[1];
+  }
+  return null;
+}
+
+// Strips timestamps, sequence numbers, and formatting from SRT/VTT subtitle files
+// and returns joined plain text.
+export function parseSrtVtt(content: string): string {
+  const lines = content.split('\n');
+  const textLines: string[] = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (line === 'WEBVTT') continue;
+    if (/^\d+$/.test(line)) continue; // SRT sequence number
+    if (/^[\d:,.]+ --> /.test(line)) continue; // timestamp line
+    if (/^(NOTE|STYLE|REGION)/.test(line)) continue; // VTT metadata
+    // Strip inline HTML tags like <b>, <i>, <c.class>
+    const text = line.replace(/<[^>]+>/g, '').trim();
+    if (text) textLines.push(text);
+  }
+  return textLines.join(' ').replace(/\s+/g, ' ').trim();
+}
 
 export function extractFirstUrl(value: string): string | null {
   const match = value.match(URL_PATTERN);

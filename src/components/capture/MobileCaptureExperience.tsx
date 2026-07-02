@@ -1,27 +1,34 @@
-import { useMemo, useState } from "react";
-import type { Entry, SourceType } from "../../data/types";
+import { useMemo, useRef, useState } from "react";
+import type { Entry } from "../../data/types";
 import { SOURCE_TYPE_LABEL } from "../../data/types";
 import { useAppState } from "../../state/useAppState";
-import { getEntryDraft } from "../../utils/clientCapture";
+import { capture, isYouTubeUrl, type CaptureError } from "../../utils/clientCapture";
 import { formatRelative } from "../../utils/format";
-import { inferSourceType, type CaptureInput } from "../../utils/extraction";
 import styles from "./MobileCaptureExperience.module.css";
 
-type CaptureMode = "link" | "text";
+type CaptureMode = "text" | "file" | "youtube";
 
-const MODE_TO_SOURCE: Record<CaptureMode, SourceType> = {
-  link: "webpage",
-  text: "clue",
+const ACCEPTED_FILE_TYPES = ".txt,.md,.pdf,.srt,.vtt";
+const ACCEPTED_EXTENSIONS = new Set(["txt", "md", "pdf", "srt", "vtt"]);
+
+const ERROR_MESSAGES: Record<CaptureError, string> = {
+  no_transcript: "这个视频没有字幕，或者字幕暂时抓不到。",
+  parse_failed: "文件解析失败，请检查格式。",
+  file_too_large: "文件太大，文本最大 2MB，PDF 最大 5MB。",
+  network_error: "网络有点问题，稍后再试试。",
 };
 
 export function MobileCaptureExperience() {
   const { entries, dispatch } = useAppState();
-  const activeTab = "capture";
-  const [mode, setMode] = useState<CaptureMode>("link");
-  const [rawInput, setRawInput] = useState("");
+  const [mode, setMode] = useState<CaptureMode>("text");
+  const [textInput, setTextInput] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [youtubeUrl, setYoutubeUrl] = useState("");
   const [captureNote, setCaptureNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [status, setStatus] = useState("");
+  const [statusMsg, setStatusMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const recent = useMemo(() => {
     return [...entries]
@@ -29,32 +36,60 @@ export function MobileCaptureExperience() {
       .slice(0, 2);
   }, [entries]);
 
-  const canSave = rawInput.trim().length > 0 || captureNote.trim().length > 0;
+  const isValidYouTube = isYouTubeUrl(youtubeUrl.trim());
+
+  const canSave =
+    !isSaving &&
+    (mode === "text"
+      ? textInput.trim().length > 0
+      : mode === "file"
+        ? file !== null
+        : isValidYouTube);
+
+  const handleFileSelect = (selected: File | null) => {
+    if (!selected) { setFile(null); return; }
+    const ext = selected.name.split(".").pop()?.toLowerCase() ?? "";
+    if (!ACCEPTED_EXTENSIONS.has(ext)) {
+      setErrorMsg("只支持 TXT、Markdown、PDF、SRT 或 VTT 格式的文件。");
+      return;
+    }
+    setFile(selected);
+    setErrorMsg("");
+  };
 
   const discardEntry = (id: string) => {
     dispatch({ type: "DISCARD_ENTRY", payload: { id } });
   };
 
-  const saveCapture = async (override?: { rawInput: string; captureNote: string }) => {
-    const nextRaw = override?.rawInput ?? rawInput;
-    const nextNote = override?.captureNote ?? captureNote;
-    if ((!nextRaw.trim() && !nextNote.trim()) || isSaving) return;
-
-    const sourceType = inferSourceType(nextRaw, MODE_TO_SOURCE[mode]);
-    const input: CaptureInput = {
-      rawInput: nextRaw,
-      captureNote: nextNote,
-      sourceType,
-    };
-
+  const saveCapture = async () => {
+    if (!canSave) return;
     setIsSaving(true);
-    setStatus("正在整理成材料");
-    const draft = await getEntryDraft(input);
-    dispatch({ type: "ADD_ENTRY", payload: draft });
-    setRawInput("");
-    setCaptureNote("");
+    setErrorMsg("");
+    setStatusMsg(mode === "youtube" ? "正在抓取字幕" : "正在整理成材料");
+
+    const result = await capture(
+      mode === "text"
+        ? { mode: "text", rawInput: textInput, captureNote }
+        : mode === "file"
+          ? { mode: "file", file: file!, captureNote }
+          : { mode: "youtube", url: youtubeUrl.trim(), captureNote }
+    );
+
     setIsSaving(false);
-    setStatus("已进入电脑端待处理区");
+
+    if (!result.ok) {
+      setStatusMsg("");
+      setErrorMsg(ERROR_MESSAGES[result.error]);
+      return;
+    }
+
+    dispatch({ type: "ADD_ENTRY", payload: result.draft });
+    setTextInput("");
+    setFile(null);
+    setYoutubeUrl("");
+    setCaptureNote("");
+    setStatusMsg("已进入电脑端待处理区");
+    setTimeout(() => setStatusMsg(""), 3000);
   };
 
   return (
@@ -67,171 +102,186 @@ export function MobileCaptureExperience() {
       </header>
 
       <main className={styles.content}>
-        {activeTab === "capture" && (
-          <CaptureTab
-            mode={mode}
-            setMode={setMode}
-            rawInput={rawInput}
-            setRawInput={setRawInput}
-            captureNote={captureNote}
-            setCaptureNote={setCaptureNote}
-            canSave={canSave}
-            isSaving={isSaving}
-            status={status}
-            recent={recent}
-            onSave={() => void saveCapture()}
-            onDiscard={discardEntry}
+        <section className={styles.panel}>
+          <h1>收进来</h1>
+          <p className={styles.lede}>把有价值的材料先收进来，稍后再整理。</p>
+
+          {/* Mode tabs */}
+          <div className={styles.modeTabs} role="tablist" aria-label="收集方式">
+            {([
+              ["text", "粘贴文字"],
+              ["file", "上传文件"],
+              ["youtube", "YouTube"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={mode === value}
+                className={
+                  mode === value
+                    ? `${styles.modeTab} ${styles.modeTabActive}`
+                    : styles.modeTab
+                }
+                onClick={() => { setMode(value); setErrorMsg(""); setStatusMsg(""); }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Text mode */}
+          {mode === "text" && (
+            <>
+              <label className={styles.label} htmlFor="m-capture-text">
+                粘贴文字内容
+              </label>
+              <textarea
+                id="m-capture-text"
+                className={styles.largeInput}
+                value={textInput}
+                maxLength={8000}
+                rows={7}
+                placeholder="粘贴文章正文、书摘、笔记……"
+                onChange={(e) => setTextInput(e.target.value)}
+              />
+              <p className={styles.counter}>{textInput.length} / 8000</p>
+            </>
+          )}
+
+          {/* File mode */}
+          {mode === "file" && (
+            <>
+              <label className={styles.label}>上传文件</label>
+              <div
+                className={styles.fileZone}
+                onClick={() => fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_FILE_TYPES}
+                  className={styles.fileInputHidden}
+                  onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
+                />
+                {file ? (
+                  <div className={styles.fileSelected}>
+                    <span className={styles.fileName}>{file.name}</span>
+                    <button
+                      type="button"
+                      className={styles.fileRemove}
+                      onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                    >
+                      删除
+                    </button>
+                  </div>
+                ) : (
+                  <div className={styles.filePrompt}>
+                    <span>点击选择文件</span>
+                    <small>TXT、Markdown、PDF、SRT、VTT</small>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* YouTube mode */}
+          {mode === "youtube" && (
+            <>
+              <label className={styles.label} htmlFor="m-capture-youtube">
+                粘贴 YouTube 链接
+              </label>
+              <input
+                id="m-capture-youtube"
+                type="url"
+                className={
+                  youtubeUrl && !isValidYouTube
+                    ? `${styles.urlInput} ${styles.urlInputInvalid}`
+                    : styles.urlInput
+                }
+                value={youtubeUrl}
+                placeholder="https://www.youtube.com/watch?v=..."
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+              />
+              {youtubeUrl && !isValidYouTube && (
+                <small className={styles.urlHint}>请粘贴完整的 YouTube 链接</small>
+              )}
+              {isValidYouTube && (
+                <small className={styles.urlHintOk}>识别到 YouTube 视频，会自动抓取字幕</small>
+              )}
+            </>
+          )}
+
+          {/* Shared note field */}
+          <label className={styles.label} htmlFor="m-capture-note">
+            为什么想收进来？
+          </label>
+          <textarea
+            id="m-capture-note"
+            className={styles.noteInput}
+            value={captureNote}
+            maxLength={200}
+            rows={3}
+            placeholder="这可能和我最近在想的什么有关"
+            onChange={(e) => setCaptureNote(e.target.value)}
           />
-        )}
+          <p className={styles.counter}>{captureNote.length} / 200</p>
+
+          <button
+            type="button"
+            className={styles.primaryButton}
+            disabled={!canSave}
+            onClick={() => void saveCapture()}
+          >
+            {isSaving
+              ? mode === "youtube" ? "正在抓取字幕" : "正在整理"
+              : "收进来"}
+          </button>
+          <p className={styles.desktopHint}>稍后在电脑上捋</p>
+
+          {statusMsg && <p className={styles.statusOk}>{statusMsg}</p>}
+          {errorMsg && <p className={styles.statusError}>{errorMsg}</p>}
+
+          {recent.length > 0 && (
+            <div className={styles.recentBlock}>
+              <p className={styles.sectionLabel}>刚收进来的</p>
+              {recent.map((entry) => (
+                <RecentItem key={entry.id} entry={entry} onDiscard={discardEntry} />
+              ))}
+            </div>
+          )}
+        </section>
       </main>
 
       <nav className={styles.bottomTabs} aria-label="移动端主导航">
-        <MobileTabButton
-          label="收进来"
-          active={activeTab === "capture"}
-          onClick={() => undefined}
-        />
+        <button type="button" className={`${styles.bottomTab} ${styles.bottomTabActive}`}>
+          <span aria-hidden="true" />
+          收进来
+        </button>
       </nav>
     </div>
   );
 }
 
-function CaptureTab({
-  mode,
-  setMode,
-  rawInput,
-  setRawInput,
-  captureNote,
-  setCaptureNote,
-  canSave,
-  isSaving,
-  status,
-  recent,
-  onSave,
-  onDiscard,
-}: {
-  mode: CaptureMode;
-  setMode: (mode: CaptureMode) => void;
-  rawInput: string;
-  setRawInput: (value: string) => void;
-  captureNote: string;
-  setCaptureNote: (value: string) => void;
-  canSave: boolean;
-  isSaving: boolean;
-  status: string;
-  recent: Entry[];
-  onSave: () => void;
-  onDiscard: (id: string) => void;
-}) {
+function RecentItem({ entry, onDiscard }: { entry: Entry; onDiscard: (id: string) => void }) {
   return (
-    <section className={styles.panel}>
-      <h1>收进来</h1>
-      <p className={styles.lede}>把有价值的材料先收进来，稍后再整理。</p>
-
-      <div className={styles.modeTabs} role="tablist" aria-label="收集类型">
-        {[
-          ["link", "链接"],
-          ["text", "文本"],
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            role="tab"
-            aria-selected={mode === value}
-            className={mode === value ? `${styles.modeTab} ${styles.modeTabActive}` : styles.modeTab}
-            onClick={() => setMode(value as CaptureMode)}
-          >
-            {label}
-          </button>
-        ))}
+    <article className={styles.recentItem}>
+      <div>
+        <p>{entry.title}</p>
+        <span>
+          {SOURCE_TYPE_LABEL[entry.sourceType]} · {formatRelative(entry.capturedAt)}
+        </span>
       </div>
-
-      <label className={styles.label} htmlFor="mobile-capture-raw">
-        把你刚刚看到的、想到的，先收进来
-      </label>
-      <textarea
-        id="mobile-capture-raw"
-        className={styles.largeInput}
-        value={rawInput}
-        maxLength={2000}
-        rows={7}
-        placeholder={
-          mode === "link"
-            ? "粘贴文章、视频、播客或网页链接"
-            : "写下一句话、一个标题，或还没想清的线索"
-        }
-        onChange={(event) => setRawInput(event.target.value)}
-      />
-      <p className={styles.counter}>{rawInput.length} / 2000</p>
-
-      <label className={styles.label} htmlFor="mobile-capture-note">
-        为什么想收进来？
-      </label>
-      <textarea
-        id="mobile-capture-note"
-        className={styles.noteInput}
-        value={captureNote}
-        maxLength={200}
-        rows={3}
-        placeholder="这可能和我最近在想的什么有关"
-        onChange={(event) => setCaptureNote(event.target.value)}
-      />
-      <p className={styles.counter}>{captureNote.length} / 200</p>
-
       <button
         type="button"
-        className={styles.primaryButton}
-        disabled={!canSave || isSaving}
-        onClick={onSave}
+        aria-label={`从界面移除 ${entry.title}`}
+        onClick={() => onDiscard(entry.id)}
       >
-        {isSaving ? "正在整理" : "收进来"}
+        删除
       </button>
-      <p className={styles.desktopHint}>稍后在电脑上捋</p>
-      {status && <p className={styles.status}>{status}</p>}
-
-      {recent.length > 0 && (
-        <div className={styles.recentBlock}>
-          <p className={styles.sectionLabel}>刚收进来的</p>
-          {recent.map((entry) => (
-            <article key={entry.id} className={styles.recentItem}>
-              <div>
-                <p>{entry.title}</p>
-                <span>
-                  {SOURCE_TYPE_LABEL[entry.sourceType]} · {formatRelative(entry.capturedAt)}
-                </span>
-              </div>
-              <button
-                type="button"
-                aria-label={`从界面移除 ${entry.title}`}
-                onClick={() => onDiscard(entry.id)}
-              >
-                删除
-              </button>
-            </article>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function MobileTabButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={active ? `${styles.bottomTab} ${styles.bottomTabActive}` : styles.bottomTab}
-      onClick={onClick}
-    >
-      <span aria-hidden="true" />
-      {label}
-    </button>
+    </article>
   );
 }

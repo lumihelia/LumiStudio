@@ -63,7 +63,7 @@
 
 .modeTabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-1);
   margin-top: var(--space-2);
 }
@@ -152,16 +152,108 @@
   color: var(--primary-color);
 }
 
-.desktopHint,
-.confirmHint,
-.status {
+.desktopHint {
   color: var(--muted-color);
   text-align: center;
   font-size: 0.9rem;
 }
 
-.status {
+.statusOk {
   color: var(--accent-color);
+  font-size: 0.9rem;
+}
+
+.statusError {
+  color: #c0392b;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* File upload zone */
+.fileZone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--space-3) var(--space-2);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.8);
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fileInputHidden {
+  display: none;
+}
+
+.filePrompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted-color);
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+.filePrompt small {
+  font-size: 0.78rem;
+}
+
+.fileSelected {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.fileName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  color: var(--text-color);
+}
+
+.fileRemove {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 2px var(--space-1);
+  font-size: 0.82rem;
+  color: var(--muted-color);
+}
+
+/* URL input for YouTube mode */
+.urlInput {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--text-color);
+  line-height: 1.65;
+  padding: var(--space-2);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.urlInputInvalid {
+  border-color: #c0392b;
+}
+
+.urlHint {
+  font-size: 0.82rem;
+  color: #c0392b;
+  margin-top: 2px;
+}
+
+.urlHintOk {
+  font-size: 0.82rem;
+  color: var(--accent-color);
+  margin-top: 2px;
 }
 
 .recentBlock {

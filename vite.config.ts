@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import type { IncomingMessage } from 'node:http'
-import { extractDraftForInput, sanitizeMyContext } from './api/extract.ts'
+import { extractDraftForInput, parseInputBody } from './api/extract.ts'
 import { computeRelations } from './api/relations.ts'
-import type { CaptureInput, CaptureMyContext } from './src/utils/extraction.ts'
+import type { CaptureMyContext } from './src/utils/extraction.ts'
 import { sanitizeRelationEntries } from './src/utils/relations.ts'
 
 // https://vite.dev/config/
@@ -23,18 +23,16 @@ export default defineConfig({
 
           try {
             const body = await readJsonBody(req)
-            const input = body as Partial<CaptureInput>
-            if (!isCaptureInput(input)) {
-              res.statusCode = 400
+            const parseResult = await parseInputBody(body)
+
+            if (!parseResult.ok) {
+              res.statusCode = parseResult.statusCode
               res.setHeader('content-type', 'application/json')
-              res.end(JSON.stringify({ error: 'Invalid capture payload' }))
+              res.end(JSON.stringify({ error: parseResult.error }))
               return
             }
 
-            const result = await extractDraftForInput({
-              ...input,
-              myContext: sanitizeMyContext(input.myContext),
-            })
+            const result = await extractDraftForInput(parseResult.input)
             res.statusCode = 200
             res.setHeader('content-type', 'application/json')
             res.end(JSON.stringify(result))
@@ -99,13 +97,4 @@ function readJsonBody(req: IncomingMessage): Promise<unknown> {
     })
     req.on('error', reject)
   })
-}
-
-function isCaptureInput(input: Partial<CaptureInput>): input is CaptureInput {
-  return (
-    typeof input.rawInput === 'string' &&
-    typeof input.captureNote === 'string' &&
-    typeof input.sourceType === 'string' &&
-    ['article', 'video', 'podcast', 'webpage', 'clue'].includes(input.sourceType)
-  )
 }

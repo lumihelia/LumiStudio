@@ -2,7 +2,9 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   createDraftFromMetadata,
   extractFirstUrl,
+  extractYouTubeVideoId,
   inferSourceType,
+  parseSrtVtt,
   truncate,
   type CaptureInput,
   type CaptureMyContext,
@@ -10,19 +12,32 @@ import {
   type ExtractedMetadata,
 } from "../src/utils/extraction.js";
 
-const MAX_INPUT_LENGTH = 5000;
+const MAX_TEXT_INPUT = 8000;
+const MAX_FILE_CONTENT_CHARS = 20000;
+const MAX_YOUTUBE_TRANSCRIPT_CHARS = 15000;
 const MAX_PAGE_LENGTH = 900000;
+const MAX_PDF_BASE64_BYTES = 7 * 1024 * 1024; // ~5MB decoded
 const FETCH_TIMEOUT_MS = 6500;
 const GEMINI_TIMEOUT_MS = 8000;
 const VERIFY_TIMEOUT_MS = 6000;
+const YOUTUBE_TIMEOUT_MS = 12000;
 
-// Metadata fetch + Gemini draft + Gemini verification run sequentially and
-// can together approach 20.5s worst-case (6.5s + 8s + 6s); Vercel's default
-// function timeout is 10s on most plans, which would kill the whole request
-// before any of these timeouts fire on their own.
+// Metadata fetch + Gemini draft + Gemini verification ≈ 20.5s worst case.
 export const config = {
   maxDuration: 30,
 };
+
+// ---------------------------------------------------------------------------
+// Parse result type
+// ---------------------------------------------------------------------------
+
+type ParseOk = { ok: true; input: CaptureInput };
+type ParseErr = { ok: false; statusCode: number; error: string };
+export type ParseResult = ParseOk | ParseErr;
+
+// ---------------------------------------------------------------------------
+// Vercel handler
+// ---------------------------------------------------------------------------
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -39,34 +54,186 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const input = parseInput(req.body);
-  if (!input) {
-    res.status(400).json({ error: "Invalid capture payload" });
+  const parseResult = await parseInputBody(req.body);
+  if (!parseResult.ok) {
+    res.status(parseResult.statusCode).json({ error: parseResult.error });
     return;
   }
 
-  const { draft, mode } = await extractDraftForInput(input);
+  const { draft, mode } = await extractDraftForInput(parseResult.input);
 
-  res.status(200).json({
-    draft,
-    extraction: { mode },
-  });
+  res.status(200).json({ draft, extraction: { mode } });
 }
+
+// ---------------------------------------------------------------------------
+// parseInputBody — handles all three capture modes + legacy shape
+// ---------------------------------------------------------------------------
+
+export async function parseInputBody(body: unknown): Promise<ParseResult> {
+  let parsed: Record<string, unknown>;
+  try {
+    parsed =
+      typeof body === "string"
+        ? (JSON.parse(body || "{}") as Record<string, unknown>)
+        : (body as Record<string, unknown>);
+  } catch {
+    return { ok: false, statusCode: 400, error: "Invalid JSON" };
+  }
+
+  const rawMode = String(parsed.mode ?? "legacy");
+  const myContext = sanitizeMyContext(parsed.myContext);
+
+  // ── Mode: youtube ─────────────────────────────────────────────────────────
+  if (rawMode === "youtube") {
+    const url = String(parsed.url ?? "").trim().slice(0, 300);
+    const captureNote = String(parsed.captureNote ?? "").slice(0, 1200);
+    if (!url) return { ok: false, statusCode: 400, error: "Missing url" };
+
+    const videoId = extractYouTubeVideoId(url);
+    if (!videoId) return { ok: false, statusCode: 400, error: "Not a valid YouTube URL" };
+
+    const result = await fetchYouTubeTranscript(videoId);
+    if (!result) {
+      return {
+        ok: false,
+        statusCode: 422,
+        error: "no_transcript",
+      };
+    }
+
+    const input: CaptureInput = {
+      rawInput: truncate(result.text, MAX_YOUTUBE_TRANSCRIPT_CHARS),
+      captureNote,
+      sourceType: "video",
+      myContext,
+      _skipUrlFetch: true,
+      _presetTitle: result.title,
+    };
+    return { ok: true, input };
+  }
+
+  // ── Mode: file ────────────────────────────────────────────────────────────
+  if (rawMode === "file") {
+    const fileType = String(parsed.fileType ?? "").toLowerCase();
+    const fileContent = String(parsed.fileContent ?? "");
+    const fileName = String(parsed.fileName ?? "").slice(0, 255);
+    const captureNote = String(parsed.captureNote ?? "").slice(0, 1200);
+
+    if (!["txt", "md", "pdf", "srt", "vtt"].includes(fileType)) {
+      return { ok: false, statusCode: 400, error: "Unsupported file type" };
+    }
+    if (!fileContent) {
+      return { ok: false, statusCode: 400, error: "Missing fileContent" };
+    }
+
+    let rawText: string;
+    let sourceType: CaptureInput["sourceType"] = "article";
+
+    if (fileType === "pdf") {
+      if (fileContent.length > MAX_PDF_BASE64_BYTES) {
+        return { ok: false, statusCode: 413, error: "file_too_large" };
+      }
+      const extracted = await parsePdfContent(fileContent);
+      if (extracted === null) {
+        return { ok: false, statusCode: 422, error: "parse_failed" };
+      }
+      rawText = truncate(extracted, MAX_FILE_CONTENT_CHARS);
+    } else if (fileType === "srt" || fileType === "vtt") {
+      rawText = truncate(parseSrtVtt(fileContent), MAX_FILE_CONTENT_CHARS);
+      sourceType = "video";
+    } else {
+      // txt, md
+      rawText = truncate(fileContent, MAX_FILE_CONTENT_CHARS);
+    }
+
+    if (!rawText.trim()) {
+      return { ok: false, statusCode: 422, error: "parse_failed" };
+    }
+
+    const baseName = fileName.replace(/\.[^.]+$/, "").trim() || undefined;
+
+    const input: CaptureInput = {
+      rawInput: rawText,
+      captureNote,
+      sourceType,
+      myContext,
+      _skipUrlFetch: true,
+      _presetTitle: baseName,
+    };
+    return { ok: true, input };
+  }
+
+  // ── Mode: text ────────────────────────────────────────────────────────────
+  if (rawMode === "text") {
+    const rawInput = String(parsed.rawInput ?? "").slice(0, MAX_TEXT_INPUT);
+    const captureNote = String(parsed.captureNote ?? "").slice(0, 1200);
+    if (!rawInput.trim() && !captureNote.trim()) {
+      return { ok: false, statusCode: 400, error: "Empty input" };
+    }
+    const input: CaptureInput = {
+      rawInput,
+      captureNote,
+      sourceType: "clue",
+      myContext,
+      _skipUrlFetch: true,
+    };
+    return { ok: true, input };
+  }
+
+  // ── Legacy shape (backward compat for vite.config.ts local middleware) ────
+  const legacyInput = parsed as Partial<CaptureInput>;
+  const rawInput = String(legacyInput.rawInput ?? "").slice(0, MAX_TEXT_INPUT);
+  const captureNote = String(legacyInput.captureNote ?? "").slice(0, 1200);
+  const sourceType = legacyInput.sourceType;
+
+  if (!sourceType || !["article", "video", "podcast", "webpage", "clue"].includes(sourceType)) {
+    return { ok: false, statusCode: 400, error: "Invalid capture payload" };
+  }
+  if (!rawInput.trim() && !captureNote.trim()) {
+    return { ok: false, statusCode: 400, error: "Empty input" };
+  }
+
+  return {
+    ok: true,
+    input: {
+      rawInput,
+      captureNote,
+      sourceType: sourceType as CaptureInput["sourceType"],
+      myContext: sanitizeMyContext(legacyInput.myContext),
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// extractDraftForInput — unchanged external shape, respects _skipUrlFetch
+// ---------------------------------------------------------------------------
 
 export async function extractDraftForInput(input: CaptureInput): Promise<{
   draft: EntryDraft;
   mode: "gemini" | "metadata" | "fallback";
 }> {
-  const url = extractFirstUrl(input.rawInput);
   let metadata: ExtractedMetadata = {};
   let mode: "gemini" | "metadata" | "fallback" = "fallback";
 
-  if (url && isSafeHttpUrl(url)) {
-    try {
-      metadata = await fetchPageMetadata(url, input);
-      mode = metadata.description || metadata.textSnippet || metadata.title ? "metadata" : "fallback";
-    } catch (error) {
-      console.error("extract metadata failed", error);
+  // Seed metadata from internal flags (file name / YouTube title)
+  if (input._presetTitle) {
+    metadata.title = input._presetTitle;
+    mode = "metadata";
+  }
+
+  if (!input._skipUrlFetch) {
+    const url = extractFirstUrl(input.rawInput);
+    if (url && isSafeHttpUrl(url)) {
+      try {
+        const fetched = await fetchPageMetadata(url, input);
+        metadata = { ...metadata, ...fetched };
+        mode =
+          fetched.description || fetched.textSnippet || fetched.title
+            ? "metadata"
+            : mode;
+      } catch (error) {
+        console.error("extract metadata failed", error);
+      }
     }
   }
 
@@ -78,7 +245,9 @@ export async function extractDraftForInput(input: CaptureInput): Promise<{
       draft = geminiDraft;
       mode = "gemini";
     } else {
-      console.error("Gemini draft failed verification, falling back", { rawInput: input.rawInput.slice(0, 200) });
+      console.error("Gemini draft failed verification", {
+        rawInput: input.rawInput.slice(0, 200),
+      });
     }
   }
 
@@ -86,36 +255,19 @@ export async function extractDraftForInput(input: CaptureInput): Promise<{
   return { draft, mode };
 }
 
-function parseInput(body: unknown): CaptureInput | null {
-  let parsed: Partial<CaptureInput>;
-  try {
-    parsed =
-      typeof body === "string"
-        ? (JSON.parse(body || "{}") as Partial<CaptureInput>)
-        : (body as Partial<CaptureInput>);
-  } catch {
-    return null;
-  }
-
-  const rawInput = String(parsed.rawInput ?? "").slice(0, MAX_INPUT_LENGTH);
-  const captureNote = String(parsed.captureNote ?? "").slice(0, 1200);
-  const sourceType = parsed.sourceType;
-
-  if (!sourceType || !["article", "video", "podcast", "webpage", "clue"].includes(sourceType)) {
-    return null;
-  }
-
-  if (!rawInput.trim() && !captureNote.trim()) return null;
-  const myContext = sanitizeMyContext(parsed.myContext);
-  return { rawInput, captureNote, sourceType, myContext };
-}
+// ---------------------------------------------------------------------------
+// sanitizeMyContext (exported for vite.config.ts)
+// ---------------------------------------------------------------------------
 
 export function sanitizeMyContext(value: unknown): CaptureMyContext | undefined {
   if (!value || typeof value !== "object") return undefined;
   const raw = value as Partial<CaptureMyContext>;
   const clean = (list: unknown): string[] =>
     Array.isArray(list)
-      ? list.map((item) => String(item).slice(0, 200)).filter(Boolean).slice(0, 12)
+      ? list
+          .map((item) => String(item).slice(0, 200))
+          .filter(Boolean)
+          .slice(0, 12)
       : [];
 
   const myContext: CaptureMyContext = {
@@ -130,6 +282,95 @@ export function sanitizeMyContext(value: unknown): CaptureMyContext | undefined 
     myContext.existingClaims.length === 0;
   return isEmpty ? undefined : myContext;
 }
+
+// ---------------------------------------------------------------------------
+// YouTube transcript fetcher (no external package — scrapes timedtext URL)
+// ---------------------------------------------------------------------------
+
+async function fetchYouTubeTranscript(
+  videoId: string
+): Promise<{ text: string; title?: string } | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), YOUTUBE_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        Accept: "text/html,application/xhtml+xml,*/*;q=0.8",
+      },
+    });
+
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    // Extract page title (most reliable: <title> tag)
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+    const title = titleMatch?.[1]?.replace(/ - YouTube$/, "").trim();
+
+    // Find caption track baseUrl inside the player response JSON.
+    // YouTube encodes & as & in the inline JSON.
+    const captionMatch = html.match(/"captionTracks":\[.*?"baseUrl":"([^"]+)"/s);
+    if (!captionMatch) return null;
+
+    const captionUrl = captionMatch[1]
+      .replace(/\\u0026/g, "&")
+      .replace(/\\\//g, "/");
+
+    const captionRes = await fetch(captionUrl, {
+      signal: controller.signal,
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    if (!captionRes.ok) return null;
+
+    const xml = await captionRes.text();
+
+    // Parse <text> elements from the caption XML
+    const texts: string[] = [];
+    const pattern = /<text[^>]*>([^<]*)<\/text>/g;
+    let m: RegExpExecArray | null;
+    while ((m = pattern.exec(xml)) !== null) {
+      const segment = decodeHtml(m[1]).trim();
+      if (segment) texts.push(segment);
+    }
+
+    const text = texts.join(" ").replace(/\s+/g, " ").trim();
+    return text ? { text, title } : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PDF text extraction (dynamic import avoids CJS/ESM type collision)
+// ---------------------------------------------------------------------------
+
+type PdfParseFn = (buf: Buffer, opts?: { max?: number }) => Promise<{ text: string }>;
+
+async function parsePdfContent(base64Content: string): Promise<string | null> {
+  try {
+    const buffer = Buffer.from(base64Content, "base64");
+    // pdf-parse is a CJS package; dynamic import handles the interop.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mod = await import("pdf-parse") as any;
+    const pdfParse = (mod.default ?? mod) as PdfParseFn;
+    const result = await pdfParse(buffer, { max: 0 });
+    const text = result.text?.replace(/\s+/g, " ").trim() ?? "";
+    return text || null;
+  } catch (error) {
+    console.error("pdf-parse failed", error);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Gemini drafting
+// ---------------------------------------------------------------------------
 
 async function draftWithGemini(
   input: CaptureInput,
@@ -155,7 +396,10 @@ async function draftWithGemini(
         },
         body: JSON.stringify({
           contents: [
-            { role: "user", parts: [{ text: buildGeminiPrompt(input, metadata, fallbackDraft) }] },
+            {
+              role: "user",
+              parts: [{ text: buildGeminiPrompt(input, metadata, fallbackDraft) }],
+            },
           ],
           generationConfig: {
             responseMimeType: "application/json",
@@ -199,6 +443,11 @@ function buildGeminiPrompt(
   fallbackDraft: EntryDraft
 ): string {
   const myContext = input.myContext;
+  // Cap rawInput in the prompt to avoid very large prompts for documents/transcripts
+  const rawInputForPrompt = input.rawInput.length > 4000
+    ? `${input.rawInput.slice(0, 4000)}…（内容较长，已截取前4000字）`
+    : input.rawInput;
+
   return [
     "你是 LumiStudio 的材料整理助手。把用户刚收进来的东西整理成一条可在 PC 端继续确认的材料草稿。",
     "不要替用户做最终判断，不要编造原文没有的信息。可以生成保守摘要、标签和核心点，所有内容之后都由用户确认。",
@@ -207,13 +456,12 @@ function buildGeminiPrompt(
     "retell 是用口语化、像跟朋友聊天一样的中文，把这条材料的内容重新讲一遍——不是 whatItSays 的同义改写，也不是 coreBullets 的罗列，而是换一种更轻松、更容易听懂的方式讲清楚它在说什么。必须基于材料本身的真实内容，不能编造材料里没有的信息，也不能只写空泛的客套话。",
     "输出必须是 JSON，字段为 title, whatItSays, relevanceToMe, tags, coreBullets, retell。",
     "",
-    `用户输入：${input.rawInput}`,
+    `用户输入内容：${rawInputForPrompt}`,
     `用户当时为什么想收进来：${input.captureNote || "未填写"}`,
     `来源类型：${input.sourceType}`,
-    `抓到的标题：${metadata.title || fallbackDraft.title}`,
+    `已知标题（如有）：${metadata.title || input._presetTitle || fallbackDraft.title}`,
     `抓到的站点：${metadata.siteName || ""}`,
     `抓到的描述：${metadata.description || ""}`,
-    `抓到的正文片段：${metadata.textSnippet || ""}`,
     "",
     `用户当前在做的项目：${myContext?.currentProjects.join("；") || "未提供"}`,
     `用户长期关心的问题：${myContext?.activeQuestions.join("；") || "未提供"}`,
@@ -221,11 +469,7 @@ function buildGeminiPrompt(
   ].join("\n");
 }
 
-// Independent second pass: re-checks the draft against the original material
-// with a fresh prompt, instead of trusting the generating call's own
-// confidence. A draft that fails this never reaches the workbench — the
-// deterministic metadata/fallback draft is used instead. No auto-correction
-// in this version; see memory.md for why.
+// Independent second pass — re-checks the draft against the original material.
 async function verifyGeminiDraft(
   input: CaptureInput,
   metadata: ExtractedMetadata,
@@ -250,7 +494,10 @@ async function verifyGeminiDraft(
         },
         body: JSON.stringify({
           contents: [
-            { role: "user", parts: [{ text: buildVerificationPrompt(input, metadata, draft) }] },
+            {
+              role: "user",
+              parts: [{ text: buildVerificationPrompt(input, metadata, draft) }],
+            },
           ],
           generationConfig: {
             responseMimeType: "application/json",
@@ -286,13 +533,14 @@ function buildVerificationPrompt(
   metadata: ExtractedMetadata,
   draft: EntryDraft
 ): string {
+  const rawInputForPrompt = input.rawInput.slice(0, 3000);
   return [
     "你是 LumiStudio 的事实核查员，要独立检查另一次 AI 调用生成的材料草稿是否可信。不要重新生成草稿，只回答这份草稿能不能用。",
     "判断标准——草稿里的每一句话，是否都能在下面的原始材料里找到依据，没有编造原文没有的内容；retell 是否只是用口语重新讲了一遍材料本身，没有夹带原文没有的判断；relevanceToMe 是否只是保守地猜测相关性，没有把任何已有判断当成对这条新材料的确定结论。",
     "只要有一处明显编造或明显失实，就判定不可信。如果只是表达方式不同但内容忠实，判定可信。",
     "输出 JSON，字段为 ok（boolean）。",
     "",
-    `原始材料——用户输入：${input.rawInput}`,
+    `原始材料——用户输入：${rawInputForPrompt}`,
     `原始材料——用户当时为什么想收进来：${input.captureNote || "未填写"}`,
     `原始材料——抓到的描述：${metadata.description || ""}`,
     `原始材料——抓到的正文片段：${metadata.textSnippet || ""}`,
@@ -338,6 +586,10 @@ interface GeminiGenerateContentResponse {
   }>;
 }
 
+// ---------------------------------------------------------------------------
+// Web page metadata fetch (used only in legacy/URL-containing cases)
+// ---------------------------------------------------------------------------
+
 async function fetchPageMetadata(url: string, input: CaptureInput): Promise<ExtractedMetadata> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -348,8 +600,7 @@ async function fetchPageMetadata(url: string, input: CaptureInput): Promise<Extr
       signal: controller.signal,
       headers: {
         accept: "text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.5",
-        "user-agent":
-          "Mozilla/5.0 (compatible; LumiStudio/0.1; +https://lumihelia.com)",
+        "user-agent": "Mozilla/5.0 (compatible; LumiStudio/0.1; +https://lumihelia.com)",
       },
     });
 
