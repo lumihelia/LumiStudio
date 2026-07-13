@@ -16,30 +16,20 @@ Only record concrete actions. Avoid vague ambitions.
 
 ## Immediate
 
-- [ ] Verify the live database state before relying on entry count.
-  - Owner: next agent / user
-  - Context: legacy memory contains conflicting state about whether the table is empty or has at least one real entry.
-  - Done means: `.context/01_current_state.md` is updated with a verified statement or explicitly remains unknown.
+- [ ] Complete the owner Magic Link sign-in on `https://studio.lumihelia.com`.
+  - Owner: user
+  - Done means: the browser returns to the app and the capture workspace is visible.
 
-- [ ] Production-test the three capture modes.
-  - Owner: next agent / user
-  - Context: Round 19 added text paste, file upload, and YouTube-caption input; production YouTube/PDF behavior is still unverified.
-  - Done means: capture succeeds/fails with expected user-visible states on the deployed custom domain.
+- [ ] Production-test authenticated text, PDF, manual-caption YouTube, and auto-caption YouTube capture.
+  - Owner: user with agent support
+  - Done means: each supported input either produces a draft or shows a specific, actionable failure state.
 
-- [ ] Test a fresh real entry through My Context, judgment, publish, public page, and agent-readable output.
+- [ ] Test a fresh real entry through My Context, judgment, publish, public page, public detail page, sitemap, and agent-readable output.
   - Owner: user with agent support
   - Context: prior checks depended on data that may no longer exist; the agent should not publish on the user's behalf.
   - Done means: `/public` and `/api/agent?format=json|markdown|feed` show only the intended public projection.
 
 ## Later
-
-- [ ] Add auth and scoped RLS before any real public or multi-user use.
-  - Owner: architecture/coding agent after user approval
-  - Context: open RLS is demo-only.
-
-- [ ] Decide whether homepage SSR/prerendering is needed for generic agent readability.
-  - Owner: product/architecture agent
-  - Context: current SPA shell is not content-readable without executing JavaScript.
 
 - [ ] Run `architecture-due-diligence` before moving beyond prototype / personal MVP.
   - Owner: user / architecture agent
@@ -53,4 +43,4 @@ Only record concrete actions. Avoid vague ambitions.
 
 ## Last Updated
 
-2026-07-11 by Codex
+2026-07-12 by Codex

@@ -12,23 +12,23 @@ The previous long-form root memory is preserved as:
 
 ## Current Snapshot
 
-Project stage: prototype / personal MVP with live deployment and real backend, but demo-grade data security posture.
+Project stage: prototype / personal MVP with live deployment, owner authentication, and scoped database access.
 
 Current focus: LumiStudio is a capture, judgment, routing, public-output, and relation-discovery studio for deciding where valuable information should go.
 
-Latest meaningful work: root-level `memory.md` was migrated into `.context/`; capture input had previously been restricted to text paste, file upload, and YouTube-caption URL modes.
+Latest meaningful work: production hardening added Magic Link access, owner-only Supabase RLS, authenticated capture/relation APIs, server-rendered public pages, a dynamic sitemap, and maintained YouTube transcript extraction.
 
-Main blocker: no auth/open RLS is still demo-only; live database row count and Round 19 production capture behavior are unverified in this migration.
+Main blocker: the owner Magic Link flow and authenticated browser capture paths still require final manual verification.
 
-Next sensible step: verify live data state and production-test the three capture modes before building on the current workflow.
+Next sensible step: sign in with the owner email, then verify text, PDF, and both manual/automatic-caption YouTube captures in the deployed UI.
 
 ## Recent Handoff
 
-Last agent/session: Codex on 2026-07-11.
+Last agent/session: Codex on 2026-07-12.
 
-What changed: backed up old memory to `memory.legacy.md`, created `.context/`, migrated durable project facts into split context files, and reduced this file to a boot digest.
+What changed: deployed owner-scoped auth/RLS and protected server APIs; added readable public SSR/sitemap output; verified anonymous APIs are rejected and only published content is publicly projected.
 
-What remains risky: the legacy memory had contradictory current-data claims; treat exact live database state as unknown until checked. Do not restore seed data, publish entries, or delete live rows without explicit user instruction.
+What remains risky: email login and authenticated production capture need browser-level verification. The sole legacy discarded row has no owner and remains inaccessible unless the user explicitly chooses to migrate it.
 
 ## Context Entry Point
 
@@ -40,8 +40,8 @@ Before meaningful work:
 
 ## Architecture Audits
 
-None logged yet. Flag `architecture-due-diligence` before the project moves beyond prototype / personal MVP, especially before auth/RLS, multi-user, or public-data expansion.
+2026-07-12: focused production-readiness audit identified open RLS, unauthenticated cost-bearing APIs, non-readable public pages, and fragile production extraction. Remediation is deployed; final authenticated UI verification remains.
 
 ## Last Updated
 
-2026-07-11 by Codex
+2026-07-12 by Codex

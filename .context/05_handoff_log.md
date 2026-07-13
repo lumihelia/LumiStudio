@@ -16,6 +16,37 @@ Append concise entries after meaningful project work. Do not paste full transcri
 
 ## Entries
 
+### 2026-07-12 23:57 PDT — Codex
+
+#### Task
+
+Hardened the deployed app for owner access and publicly readable output.
+
+#### Completed
+
+- Confirmed the user applied the owner-only `entries` RLS policies in Supabase.
+- Added email Magic Link gating and passed authenticated bearer tokens to cost-bearing server APIs.
+- Protected `/api/extract` and `/api/relations` from anonymous use.
+- Added server-rendered `/public`, `/p/:id`, and dynamic `/sitemap.xml` outputs using an allowlisted public projection.
+- Replaced brittle YouTube page scraping with `youtube-transcript`; local retrieval succeeded for supplied manual and auto-caption videos.
+- Corrected `pdf-parse` v2 usage.
+- Corrected per-entry canonical URLs before final push.
+
+#### Verification
+
+- `npm run lint` and `npm run build` pass.
+- Unauthenticated production `POST /api/extract` and `POST /api/relations` return `401`.
+- Production `/public` and `/sitemap.xml` return `200`; unknown public detail returns `404`.
+
+#### Remaining Work
+
+- User must complete Magic Link in their browser and exercise text, PDF, and both YouTube paths while authenticated.
+- Do not assign the legacy discarded row to a user without explicit approval.
+
+#### Next Agent
+
+After user browser verification, update current state and remove/resolve the corresponding immediate next actions. Investigate only concrete capture failures, keeping the transcript provider as a maintained but unofficial upstream dependency.
+
 ### 2026-07-11 06:08 PDT — Codex
 
 #### Task
