@@ -20,6 +20,27 @@ Append concise entries after meaningful project work. Do not paste full transcri
 
 #### Task
 
+Refactored the workbench information hierarchy after user review.
+
+#### Completed
+
+- Left inbox now presents a short material topic plus source type, without generated titles or the internal `用户输入线索` label.
+- Material title, overview, core points, and retell are read-only output rather than editable fields.
+- Removed the redundant preview section and removed non-functional article controls.
+- Replaced the long right-side card stack with four click-to-switch processing tabs: thought, relation, judgment, and destination.
+
+#### Verification
+
+- `npm run lint`, `npm run build`, and `git diff --check` passed.
+
+#### Remaining Work
+
+- Changes are local and uncommitted. Visual verification of the authenticated workbench still requires a browser session with a real entry.
+
+### 2026-07-13 — Codex
+
+#### Task
+
 Repaired material interpretation output and aligned extraction with the configured DeepSeek provider.
 
 #### Completed

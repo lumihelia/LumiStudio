@@ -9,7 +9,8 @@ import styles from "./WorkbenchPage.module.css";
 
 const DEFAULT_PROJECT = "LumiStudio 产品阅读";
 
-type ProcessingField = "captureNote" | "whatItSays" | "retell" | "relevanceToMe" | "judgmentStatement";
+type ProcessingField = "captureNote" | "relevanceToMe" | "judgmentStatement";
+type ProcessingTab = "thought" | "relation" | "judgment" | "action";
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 const SAVE_STATE_LABEL: Record<SaveState, string> = {
@@ -24,13 +25,12 @@ export function WorkbenchPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<ProcessingField, string>>({
     captureNote: "",
-    whatItSays: "",
-    retell: "",
     relevanceToMe: "",
     judgmentStatement: "",
   });
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [discardConfirming, setDiscardConfirming] = useState(false);
+  const [activeProcessingTab, setActiveProcessingTab] = useState<ProcessingTab>("thought");
 
   const sortedEntries = useMemo(() => {
     return [...entries].sort((a, b) => {
@@ -56,8 +56,6 @@ export function WorkbenchPage() {
     if (!selectedEntry) return;
     setDraft({
       captureNote: selectedEntry.captureNote,
-      whatItSays: selectedEntry.whatItSays,
-      retell: selectedEntry.retell,
       relevanceToMe: selectedEntry.relevanceToMe,
       judgmentStatement: selectedEntry.judgmentStatement,
     });
@@ -153,10 +151,8 @@ export function WorkbenchPage() {
                 >
                   <span className={styles.sourceIcon}>{SOURCE_TYPE_LABEL[entry.sourceType].slice(0, 1)}</span>
                   <span className={styles.itemText}>
-                    <strong>{entry.title}</strong>
-                    <small>
-                      {entry.origin || SOURCE_TYPE_LABEL[entry.sourceType]} · {STATUS_SHORT_LABEL[entry.status]}
-                    </small>
+                    <strong>{inboxTopic(entry)}</strong>
+                    <small>{SOURCE_TYPE_LABEL[entry.sourceType]}</small>
                   </span>
                   <time>{formatRelative(entry.capturedAt)}</time>
                 </button>
@@ -187,16 +183,9 @@ export function WorkbenchPage() {
           </div>
         ) : (
           <article className={styles.materialArticle}>
-            <input
-              className={styles.titleInput}
-              value={selectedEntry.title}
-              onChange={(event) => updateSelected({ title: event.target.value })}
-              aria-label="材料标题"
-              placeholder="给这条材料起个标题"
-            />
+            <h1>{selectedEntry.title}</h1>
             <div className={styles.metaLine}>
               <span>{SOURCE_TYPE_LABEL[selectedEntry.sourceType]}</span>
-              <span>{selectedEntry.origin || "未记录来源"}</span>
               <span>{formatDate(selectedEntry.capturedAt)}</span>
               <span>{estimateReadTime(selectedEntry)} 分钟阅读</span>
               <span>{STATUS_SHORT_LABEL[selectedEntry.status]}</span>
@@ -204,30 +193,8 @@ export function WorkbenchPage() {
             </div>
             <div className={styles.tagRow}>
               {normalizedTags(selectedEntry).map((tag) => (
-                <button
-                  type="button"
-                  key={tag}
-                  onClick={() =>
-                    updateSelected({
-                      tags: selectedEntry.tags.includes(tag)
-                        ? selectedEntry.tags.filter((item) => item !== tag)
-                        : [...selectedEntry.tags, tag],
-                    })
-                  }
-                >
-                  {tag}
-                </button>
+                <span key={tag}>{tag}</span>
               ))}
-              <button
-                type="button"
-                onClick={() => {
-                  if (!selectedEntry.tags.includes("待判断")) {
-                    updateSelected({ tags: [...selectedEntry.tags, "待判断"] });
-                  }
-                }}
-              >
-                +
-              </button>
             </div>
 
             {needsReprocessing && (
@@ -239,15 +206,7 @@ export function WorkbenchPage() {
             )}
 
             <Section title={needsReprocessing ? "原始材料摘录" : "这篇讲了什么"}>
-              <div className={styles.summaryBox}>
-                <textarea
-                  value={draft.whatItSays}
-                  onChange={(event) => setDraft((d) => ({ ...d, whatItSays: event.target.value }))}
-                  onBlur={(event) => commitField("whatItSays", event.target.value)}
-                  aria-label="这篇讲了什么"
-                  placeholder="先把原材料本身讲清楚，不要急着下判断。"
-                />
-              </div>
+              <p className={styles.articleBody}>{selectedEntry.whatItSays}</p>
             </Section>
 
             <Section title="核心观点">
@@ -266,21 +225,15 @@ export function WorkbenchPage() {
               {needsReprocessing ? (
                 <p className={styles.sectionEmpty}>旧版流程没有生成复述。重新收进来后，这里会给出一段可编辑的口语化解释。</p>
               ) : (
-                <div className={styles.summaryBox}>
-                  <textarea
-                    value={draft.retell}
-                    onChange={(event) => setDraft((d) => ({ ...d, retell: event.target.value }))}
-                    onBlur={(event) => commitField("retell", event.target.value)}
-                    aria-label="复述"
-                    placeholder="像跟朋友聊天一样，换种说法把这篇内容重新讲一遍。"
-                  />
-                </div>
+                <p className={styles.articleBody}>{selectedEntry.retell}</p>
               )}
             </Section>
 
-            <a className={styles.readMore} href={selectedEntry.origin || "#"}>
-              阅读全文 →
-            </a>
+            {isHttpUrl(selectedEntry.origin) && (
+              <a className={styles.readMore} href={selectedEntry.origin} target="_blank" rel="noreferrer">
+                阅读全文 →
+              </a>
+            )}
           </article>
         )}
       </main>
@@ -301,8 +254,29 @@ export function WorkbenchPage() {
             <span>右侧会显示判断、项目连接和下一步动作。</span>
           </div>
         ) : (
-          <div className={styles.sideStack}>
-            <Panel title="刚刚想到" eyebrow="想法">
+          <div className={styles.processingWorkspace}>
+            <div className={styles.processingTabs} role="tablist" aria-label="我的处理">
+              {([
+                ["thought", "想法"],
+                ["relation", "关系"],
+                ["judgment", "判断"],
+                ["action", "去处"],
+              ] as const).map(([tab, label]) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeProcessingTab === tab}
+                  className={activeProcessingTab === tab ? `${styles.processingTab} ${styles.processingTabActive}` : styles.processingTab}
+                  onClick={() => setActiveProcessingTab(tab)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {activeProcessingTab === "thought" && (
+              <Panel title="刚刚想到" eyebrow="想法">
               <label className={styles.publishToggle}>
                 <input
                   type="checkbox"
@@ -319,9 +293,11 @@ export function WorkbenchPage() {
                 placeholder="你当时为什么觉得它值得留下？"
               />
               <time>{formatRelative(selectedEntry.capturedAt)}</time>
-            </Panel>
+              </Panel>
+            )}
 
-            <Panel title="和我有什么关系" eyebrow="关系">
+            {activeProcessingTab === "relation" && (
+              <Panel title="和我有什么关系" eyebrow="关系">
               <label className={styles.publishToggle}>
                 <input
                   type="checkbox"
@@ -352,25 +328,15 @@ export function WorkbenchPage() {
                   +
                 </button>
               </div>
-            </Panel>
+              <div className={styles.relationSummary}>
+                <strong>{relatedEntries.length > 0 ? `发现 ${relatedEntries.length} 条相关材料` : "尚未发现明确关联"}</strong>
+                <Link to="/gravity">查看引力台 →</Link>
+              </div>
+              </Panel>
+            )}
 
-            <Panel title="它还牵到了什么" eyebrow="关联">
-              {relatedEntries.length === 0 ? (
-                <p className={styles.mutedText}>还没找到明确关系。添加项目或标签后，引力台会出现更多张力。</p>
-              ) : (
-                <div className={styles.relatedList}>
-                  {relatedEntries.map((entry) => (
-                    <div key={entry.id} className={styles.relatedItem}>
-                      <span>{entry.title}</span>
-                      <small>{entry.projectTag || entry.tags[0] || "相似材料"}</small>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <Link to="/gravity">查看更多关联 →</Link>
-            </Panel>
-
-            <Panel title="我的判断" eyebrow="判断">
+            {activeProcessingTab === "judgment" && (
+              <Panel title="我的判断" eyebrow="判断">
               <textarea
                 value={draft.judgmentStatement}
                 onChange={(event) =>
@@ -380,9 +346,11 @@ export function WorkbenchPage() {
                 aria-label="我的判断"
                 placeholder="这条材料让你形成了什么判断？放到公开页之前，这里需要是你自己的话。"
               />
-            </Panel>
+              </Panel>
+            )}
 
-            <Panel title="这条材料的去处" eyebrow="行动">
+            {activeProcessingTab === "action" && (
+              <Panel title="这条材料的去处" eyebrow="行动">
               <button
                 type="button"
                 className={styles.actionPrimary}
@@ -410,7 +378,8 @@ export function WorkbenchPage() {
                   {discardConfirming ? "确定不留？" : "不留了"}
                 </button>
               </div>
-            </Panel>
+              </Panel>
+            )}
           </div>
         )}
       </aside>
@@ -448,6 +417,19 @@ function Panel({
 function normalizedTags(entry: Entry): string[] {
   const tags = entry.tags.length > 0 ? entry.tags : [SOURCE_TYPE_LABEL[entry.sourceType]];
   return Array.from(new Set(tags)).slice(0, 4);
+}
+
+function inboxTopic(entry: Entry): string {
+  return entry.tags[0] || SOURCE_TYPE_LABEL[entry.sourceType];
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function findRelatedEntries(entry: Entry, entries: Entry[]): Entry[] {
