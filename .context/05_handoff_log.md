@@ -16,6 +16,28 @@ Append concise entries after meaningful project work. Do not paste full transcri
 
 ## Entries
 
+### 2026-07-13 — Codex
+
+#### Task
+
+Repaired material interpretation output and aligned extraction with the configured DeepSeek provider.
+
+#### Completed
+
+- Replaced the Gemini extraction call with DeepSeek chat completions using server-only `DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL`.
+- Required one complete structured result: faithful overview, three to five core points, and a plain-language retell.
+- Disabled DeepSeek thinking mode for bounded interactive latency.
+- Removed the redundant workbench preview and stopped rendering raw fallback text as core viewpoints.
+- Added an explicit old-record state that explains when a source must be captured again from its original link or text.
+
+#### Verification
+
+- `npm run lint`, `npm run build`, and `git diff --check` passed.
+
+#### Remaining Work
+
+- Verify the Vercel deployment with an authenticated new capture from the original YouTube URL. The old fallback entry contains only a short source excerpt and should not be treated as an interpretation.
+
 ### 2026-07-12 23:57 PDT — Codex
 
 #### Task

@@ -239,23 +239,6 @@
   color: var(--placeholder-color);
 }
 
-.articleTools {
-  position: absolute;
-  right: 0;
-  top: 0;
-  display: flex;
-  gap: var(--space-1);
-}
-
-.articleTools button {
-  border: none;
-  background: transparent;
-  color: var(--primary-color);
-  font-family: var(--font-mono);
-  font-size: 1rem;
-  padding: var(--space-1);
-}
-
 .metaLine {
   display: flex;
   flex-wrap: wrap;
@@ -336,6 +319,28 @@
 .summaryBox textarea:focus,
 .panel textarea:focus {
   outline: none;
+}
+
+.analysisNotice {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-4);
+  padding: var(--space-2);
+  border-left: 2px solid var(--primary-color);
+  background: var(--input-bg);
+  color: var(--primary-hover);
+}
+
+.analysisNotice span,
+.sectionEmpty {
+  color: var(--muted-color);
+  line-height: 1.7;
+}
+
+.analysisNotice a {
+  width: fit-content;
+  color: var(--primary-color);
+  font-weight: 600;
 }
 
 .bulletList {

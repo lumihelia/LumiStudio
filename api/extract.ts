@@ -20,8 +20,7 @@ const MAX_YOUTUBE_TRANSCRIPT_CHARS = 15000;
 const MAX_PAGE_LENGTH = 900000;
 const MAX_PDF_BASE64_BYTES = 7 * 1024 * 1024; // ~5MB decoded
 const FETCH_TIMEOUT_MS = 6500;
-const GEMINI_TIMEOUT_MS = 8000;
-const VERIFY_TIMEOUT_MS = 6000;
+const DEEPSEEK_TIMEOUT_MS = 20000;
 const YOUTUBE_TIMEOUT_MS = 12000;
 
 // Metadata fetch + Gemini draft + Gemini verification ≈ 20.5s worst case.
@@ -44,7 +43,7 @@ export type ParseResult = ParseOk | ParseErr;
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
 
   if (req.method === "OPTIONS") {
     res.status(204).end();
@@ -65,6 +64,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { draft, mode } = await extractDraftForInput(parseResult.input);
+  if (mode !== "deepseek") {
+    res.status(503).json({ error: "analysis_unavailable" });
+    return;
+  }
 
   res.status(200).json({ draft, extraction: { mode } });
 }
@@ -214,10 +217,10 @@ export async function parseInputBody(body: unknown): Promise<ParseResult> {
 
 export async function extractDraftForInput(input: CaptureInput): Promise<{
   draft: EntryDraft;
-  mode: "gemini" | "metadata" | "fallback";
+  mode: "deepseek" | "metadata" | "fallback";
 }> {
   let metadata: ExtractedMetadata = {};
-  let mode: "gemini" | "metadata" | "fallback" = "fallback";
+  let mode: "deepseek" | "metadata" | "fallback" = "fallback";
 
   // Seed metadata from internal flags (file name / YouTube title)
   if (input._presetTitle) {
@@ -242,20 +245,13 @@ export async function extractDraftForInput(input: CaptureInput): Promise<{
   }
 
   let draft = createDraftFromMetadata(input, metadata);
-  const geminiDraft = await draftWithGemini(input, metadata, draft);
-  if (geminiDraft) {
-    const verified = await verifyGeminiDraft(input, metadata, geminiDraft);
-    if (verified) {
-      draft = geminiDraft;
-      mode = "gemini";
-    } else {
-      console.error("Gemini draft failed verification", {
-        rawInput: input.rawInput.slice(0, 200),
-      });
-    }
+  const deepSeekDraft = await draftWithDeepSeek(input, metadata, draft);
+  if (deepSeekDraft) {
+    draft = deepSeekDraft;
+    mode = "deepseek";
   }
 
-  draft.wasExtracted = mode !== "fallback";
+  draft.wasExtracted = mode === "deepseek";
   return { draft, mode };
 }
 
@@ -326,75 +322,59 @@ async function parsePdfContent(base64Content: string): Promise<string | null> {
 }
 
 // ---------------------------------------------------------------------------
-// Gemini drafting
+// DeepSeek drafting
 // ---------------------------------------------------------------------------
 
-async function draftWithGemini(
+async function draftWithDeepSeek(
   input: CaptureInput,
   metadata: ExtractedMetadata,
   fallbackDraft: EntryDraft
 ): Promise<EntryDraft | null> {
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.DEEPSEEK_API_KEY;
   if (!key) return null;
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": key,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: buildGeminiPrompt(input, metadata, fallbackDraft) }],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "OBJECT",
-              properties: {
-                title: { type: "STRING" },
-                whatItSays: { type: "STRING" },
-                relevanceToMe: { type: "STRING" },
-                tags: { type: "ARRAY", items: { type: "STRING" } },
-                coreBullets: { type: "ARRAY", items: { type: "STRING" } },
-                retell: { type: "STRING" },
-              },
-              required: ["title", "whatItSays", "relevanceToMe", "tags", "coreBullets", "retell"],
-            },
-          },
-        }),
-      }
-    );
+    const response = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: "You produce faithful Chinese material drafts. Return only a valid JSON object." },
+          { role: "user", content: buildDeepSeekPrompt(input, metadata, fallbackDraft) },
+        ],
+        response_format: { type: "json_object" },
+        thinking: { type: "disabled" },
+        temperature: 0.2,
+      }),
+    });
 
     if (!response.ok) {
-      console.error("Gemini draft failed", response.status, await response.text());
+      console.error("DeepSeek draft failed", response.status, await response.text());
       return null;
     }
-    const data = (await response.json()) as GeminiGenerateContentResponse;
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const data = (await response.json()) as DeepSeekChatResponse;
+    const text = data.choices?.[0]?.message?.content ?? "";
     if (!text) return null;
     const parsed = JSON.parse(text) as Partial<EntryDraft>;
-    return normalizeGeminiDraft(parsed, fallbackDraft);
+    return normalizeDeepSeekDraft(parsed, fallbackDraft);
   } catch (error) {
-    console.error("Gemini draft failed", error);
+    console.error("DeepSeek draft failed", error);
     return null;
   } finally {
     clearTimeout(timeout);
   }
 }
 
-function buildGeminiPrompt(
+function buildDeepSeekPrompt(
   input: CaptureInput,
   metadata: ExtractedMetadata,
   fallbackDraft: EntryDraft
@@ -406,11 +386,14 @@ function buildGeminiPrompt(
     : input.rawInput;
 
   return [
-    "你是 LumiStudio 的材料整理助手。把用户刚收进来的东西整理成一条可在 PC 端继续确认的材料草稿。",
-    "不要替用户做最终判断，不要编造原文没有的信息。可以生成保守摘要、标签和核心点，所有内容之后都由用户确认。",
+    "你是 LumiStudio 的材料整理助手。把用户刚收进来的内容整理成一条可供人继续确认的材料草稿。",
+    "这是一个紧凑版的三层处理：先忠实还原材料，再把它讲成好懂的话，最后才保守提示它和用户上下文可能的关联。不要替用户做最终判断，不要编造原文没有的信息。",
     "relevanceToMe 只能保守描述「这条材料可能和用户的哪个项目/问题/已有判断相关、为什么」，不要把用户已有的判断或任何外部观点，当成用户对这条新材料已经下的结论直接写进去——那仍然需要用户自己在工作台确认。",
     "如果下面的项目/问题/判断信息和这条材料看不出明显关系，就不要硬扯关系，写清楚这条材料本身是什么即可。",
-    "retell 是用口语化、像跟朋友聊天一样的中文，把这条材料的内容重新讲一遍——不是 whatItSays 的同义改写，也不是 coreBullets 的罗列，而是换一种更轻松、更容易听懂的方式讲清楚它在说什么。必须基于材料本身的真实内容，不能编造材料里没有的信息，也不能只写空泛的客套话。",
+    "whatItSays 是忠实概述：用 2 至 4 句说清材料讨论的对象、中心问题和论证走向；不要抄写原文、时间戳或输入说明。",
+    "coreBullets 必须是 3 至 5 条彼此不同的实质观点，每条是一句完整陈述；不要写来源、不要复述用户备注、不要把原文片段当作观点。",
+    "retell 是用口语化、像跟朋友聊天一样的中文，把这条材料重新讲一遍。它应有因果和逻辑，而不是 whatItSays 的同义改写、要点罗列或空泛客套话。",
+    "如果材料太短或信息不足以完成三层处理，返回 JSON 但将 whatItSays、coreBullets、retell 都留为空；绝不能用原文、用户备注或模板句子充数。",
     "输出必须是 JSON，字段为 title, whatItSays, relevanceToMe, tags, coreBullets, retell。",
     "",
     `用户输入内容：${rawInputForPrompt}`,
@@ -426,98 +409,20 @@ function buildGeminiPrompt(
   ].join("\n");
 }
 
-// Independent second pass — re-checks the draft against the original material.
-async function verifyGeminiDraft(
-  input: CaptureInput,
-  metadata: ExtractedMetadata,
-  draft: EntryDraft
-): Promise<boolean> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return false;
+function normalizeDeepSeekDraft(value: Partial<EntryDraft>, fallback: EntryDraft): EntryDraft | null {
+  const whatItSays = truncate(String(value.whatItSays ?? ""), 700);
+  const coreBullets = cleanList(value.coreBullets, [], 5, 140);
+  const retell = truncate(String(value.retell ?? ""), 600);
+  if (whatItSays.length < 40 || coreBullets.length < 3 || retell.length < 40) return null;
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": key,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: buildVerificationPrompt(input, metadata, draft) }],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "OBJECT",
-              properties: { ok: { type: "BOOLEAN" } },
-              required: ["ok"],
-            },
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      console.error("Gemini verification failed", response.status, await response.text());
-      return false;
-    }
-    const data = (await response.json()) as GeminiGenerateContentResponse;
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-    if (!text) return false;
-    const parsed = JSON.parse(text) as { ok?: unknown };
-    return parsed.ok === true;
-  } catch (error) {
-    console.error("Gemini verification failed", error);
-    return false;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function buildVerificationPrompt(
-  input: CaptureInput,
-  metadata: ExtractedMetadata,
-  draft: EntryDraft
-): string {
-  const rawInputForPrompt = input.rawInput.slice(0, 3000);
-  return [
-    "你是 LumiStudio 的事实核查员，要独立检查另一次 AI 调用生成的材料草稿是否可信。不要重新生成草稿，只回答这份草稿能不能用。",
-    "判断标准——草稿里的每一句话，是否都能在下面的原始材料里找到依据，没有编造原文没有的内容；retell 是否只是用口语重新讲了一遍材料本身，没有夹带原文没有的判断；relevanceToMe 是否只是保守地猜测相关性，没有把任何已有判断当成对这条新材料的确定结论。",
-    "只要有一处明显编造或明显失实，就判定不可信。如果只是表达方式不同但内容忠实，判定可信。",
-    "输出 JSON，字段为 ok（boolean）。",
-    "",
-    `原始材料——用户输入：${rawInputForPrompt}`,
-    `原始材料——用户当时为什么想收进来：${input.captureNote || "未填写"}`,
-    `原始材料——抓到的描述：${metadata.description || ""}`,
-    `原始材料——抓到的正文片段：${metadata.textSnippet || ""}`,
-    "",
-    `待核查草稿——whatItSays：${draft.whatItSays}`,
-    `待核查草稿——coreBullets：${draft.coreBullets.join("；")}`,
-    `待核查草稿——retell：${draft.retell}`,
-    `待核查草稿——relevanceToMe：${draft.relevanceToMe}`,
-  ].join("\n");
-}
-
-function normalizeGeminiDraft(value: Partial<EntryDraft>, fallback: EntryDraft): EntryDraft {
   return {
     ...fallback,
     title: truncate(String(value.title || fallback.title), 120),
-    whatItSays: truncate(String(value.whatItSays || fallback.whatItSays), 700),
+    whatItSays,
     relevanceToMe: truncate(String(value.relevanceToMe || fallback.relevanceToMe), 360),
     tags: cleanList(value.tags, fallback.tags, 5, 24),
-    coreBullets: cleanList(value.coreBullets, fallback.coreBullets, 4, 140),
-    retell: truncate(String(value.retell || fallback.retell), 600),
+    coreBullets,
+    retell,
   };
 }
 
@@ -535,12 +440,8 @@ function cleanList(
   return cleaned.length > 0 ? Array.from(new Set(cleaned)) : fallback;
 }
 
-interface GeminiGenerateContentResponse {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{ text?: string }>;
-    };
-  }>;
+interface DeepSeekChatResponse {
+  choices?: Array<{ message?: { content?: string } }>;
 }
 
 // ---------------------------------------------------------------------------

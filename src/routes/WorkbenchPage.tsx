@@ -115,6 +115,9 @@ export function WorkbenchPage() {
   const relatedEntries = selectedEntry
     ? findRelatedEntries(selectedEntry, sortedEntries).slice(0, 3)
     : [];
+  const needsReprocessing = selectedEntry
+    ? !selectedEntry.retell.trim() || selectedEntry.coreBullets.length < 3
+    : false;
 
   return (
     <div className={styles.shell}>
@@ -184,10 +187,6 @@ export function WorkbenchPage() {
           </div>
         ) : (
           <article className={styles.materialArticle}>
-            <div className={styles.articleTools}>
-              <button type="button" aria-label="保留到稍后">[]</button>
-              <button type="button" aria-label="更多操作">...</button>
-            </div>
             <input
               className={styles.titleInput}
               value={selectedEntry.title}
@@ -231,7 +230,15 @@ export function WorkbenchPage() {
               </button>
             </div>
 
-            <Section title="这篇讲了什么">
+            {needsReprocessing && (
+              <div className={styles.analysisNotice} role="status">
+                <strong>这条材料尚未完成整理。</strong>
+                <span>旧版流程只保存了原始摘录，没有生成可信的概述、要点和复述。</span>
+                <Link to="/">用原始链接或正文重新收进来</Link>
+              </div>
+            )}
+
+            <Section title={needsReprocessing ? "原始材料摘录" : "这篇讲了什么"}>
               <div className={styles.summaryBox}>
                 <textarea
                   value={draft.whatItSays}
@@ -244,34 +251,31 @@ export function WorkbenchPage() {
             </Section>
 
             <Section title="核心观点">
-              <ul className={styles.bulletList}>
-                {coreBulletsFor(selectedEntry).map((bullet) => (
-                  <li key={bullet}>{bullet}</li>
-                ))}
-              </ul>
+              {!needsReprocessing && selectedEntry.coreBullets.length > 0 ? (
+                <ul className={styles.bulletList}>
+                  {selectedEntry.coreBullets.slice(0, 5).map((bullet) => (
+                    <li key={bullet}>{bullet}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={styles.sectionEmpty}>完成整理后，这里会显示材料本身的关键观点。</p>
+              )}
             </Section>
 
             <Section title="复述">
-              <div className={styles.summaryBox}>
-                <textarea
-                  value={draft.retell}
-                  onChange={(event) => setDraft((d) => ({ ...d, retell: event.target.value }))}
-                  onBlur={(event) => commitField("retell", event.target.value)}
-                  aria-label="复述"
-                  placeholder="像跟朋友聊天一样，换种说法把这篇内容重新讲一遍。"
-                />
-              </div>
-            </Section>
-
-            <Section title="内容预览">
-              <p>
-                {selectedEntry.whatItSays ||
-                  "这条材料还没有被整理。收进来的链接会先变成来源、摘要、标签和可继续处理的线索。"}
-              </p>
-              <p>
-                {selectedEntry.relevanceToMe ||
-                  "回到电脑后，用户在这里确认它和自己的项目、判断或行动之间的关系。"}
-              </p>
+              {needsReprocessing ? (
+                <p className={styles.sectionEmpty}>旧版流程没有生成复述。重新收进来后，这里会给出一段可编辑的口语化解释。</p>
+              ) : (
+                <div className={styles.summaryBox}>
+                  <textarea
+                    value={draft.retell}
+                    onChange={(event) => setDraft((d) => ({ ...d, retell: event.target.value }))}
+                    onBlur={(event) => commitField("retell", event.target.value)}
+                    aria-label="复述"
+                    placeholder="像跟朋友聊天一样，换种说法把这篇内容重新讲一遍。"
+                  />
+                </div>
+              )}
             </Section>
 
             <a className={styles.readMore} href={selectedEntry.origin || "#"}>
@@ -444,15 +448,6 @@ function Panel({
 function normalizedTags(entry: Entry): string[] {
   const tags = entry.tags.length > 0 ? entry.tags : [SOURCE_TYPE_LABEL[entry.sourceType]];
   return Array.from(new Set(tags)).slice(0, 4);
-}
-
-function coreBulletsFor(entry: Entry): string[] {
-  if (entry.coreBullets.length > 0) return entry.coreBullets.slice(0, 4);
-  return [
-    entry.whatItSays || "先把材料本身讲清楚。",
-    entry.relevanceToMe || "再判断它和我有什么关系。",
-    entry.nextAction || "最后决定接到项目、写成一段、变成任务，还是先放着。",
-  ];
 }
 
 function findRelatedEntries(entry: Entry, entries: Entry[]): Entry[] {

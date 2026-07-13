@@ -104,6 +104,7 @@ export async function computeRelations(
           { role: "user", content: user },
         ],
         response_format: { type: "json_object" },
+        thinking: { type: "disabled" },
         temperature: 0.3,
       }),
     });

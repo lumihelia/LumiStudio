@@ -15,6 +15,7 @@ const ERROR_MESSAGES: Record<CaptureError, string> = {
   no_transcript: "这个视频没有字幕，或者字幕暂时抓不到。",
   parse_failed: "文件解析失败，请检查格式。",
   file_too_large: "文件太大，文本最大 2MB，PDF 最大 5MB。",
+  analysis_unavailable: "材料已读到，但整理服务没有生成完整概述、要点和复述。这次没有保存，请稍后重试。",
   network_error: "网络有点问题，稍后再试试。",
 };
 

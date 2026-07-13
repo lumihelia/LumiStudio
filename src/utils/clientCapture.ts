@@ -1,13 +1,8 @@
-import {
-  createFallbackDraft,
-  isYouTubeUrl,
-  type CaptureInput,
-  type EntryDraft,
-} from "./extraction";
+import { isYouTubeUrl, type EntryDraft } from "./extraction";
 import { loadMyContext, toCaptureMyContext } from "./myContext";
 import { supabase } from "../lib/supabaseClient";
 
-export type CaptureError = "no_transcript" | "parse_failed" | "file_too_large" | "network_error";
+export type CaptureError = "no_transcript" | "parse_failed" | "file_too_large" | "analysis_unavailable" | "network_error";
 
 export type CaptureResult =
   | { ok: true; draft: EntryDraft }
@@ -86,30 +81,6 @@ export async function capture(source: CaptureSource): Promise<CaptureResult> {
   return postExtract(payload);
 }
 
-// ---------------------------------------------------------------------------
-// Legacy helper kept for any callers that still pass CaptureInput directly
-// ---------------------------------------------------------------------------
-
-export async function getEntryDraft(input: CaptureInput): Promise<EntryDraft> {
-  const payload: CaptureInput = { ...input, myContext: toCaptureMyContext(loadMyContext()) };
-  try {
-    const response = await fetch("/api/extract", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) return createFallbackDraft(payload);
-    const data = (await response.json()) as { draft?: EntryDraft };
-    return data.draft ?? createFallbackDraft(payload);
-  } catch {
-    return createFallbackDraft(payload);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Internal
-// ---------------------------------------------------------------------------
-
 async function postExtract(payload: Record<string, unknown>): Promise<CaptureResult> {
   try {
     const response = await fetch("/api/extract", {
@@ -118,10 +89,11 @@ async function postExtract(payload: Record<string, unknown>): Promise<CaptureRes
       body: JSON.stringify(payload),
     });
 
-    if (response.status === 422) {
+    if (response.status === 422 || response.status === 503) {
       const data = (await response.json()) as { error?: string };
       if (data.error === "no_transcript") return { ok: false, error: "no_transcript" };
       if (data.error === "file_too_large") return { ok: false, error: "file_too_large" };
+      if (data.error === "analysis_unavailable") return { ok: false, error: "analysis_unavailable" };
       return { ok: false, error: "parse_failed" };
     }
 
