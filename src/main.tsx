@@ -4,14 +4,17 @@ import { BrowserRouter } from "react-router-dom";
 import "./styles/tokens.css";
 import "./styles/global.css";
 import { AppStateProvider } from "./state/AppStateContext";
+import { AuthGate } from "./components/auth/AuthGate";
 import App from "./App";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <AppStateProvider>
-        <App />
-      </AppStateProvider>
+      <AuthGate>
+        <AppStateProvider>
+          <App />
+        </AppStateProvider>
+      </AuthGate>
     </BrowserRouter>
   </StrictMode>
 );

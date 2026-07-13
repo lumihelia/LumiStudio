@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { fetchTranscript } from "youtube-transcript";
+import { requireUser } from "./auth.js";
 import {
   createDraftFromMetadata,
   extractFirstUrl,
@@ -53,6 +55,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(405).json({ error: "Use POST" });
     return;
   }
+
+  if (!(await requireUser(req, res))) return;
 
   const parseResult = await parseInputBody(req.body);
   if (!parseResult.ok) {
@@ -290,59 +294,15 @@ export function sanitizeMyContext(value: unknown): CaptureMyContext | undefined 
 async function fetchYouTubeTranscript(
   videoId: string
 ): Promise<{ text: string; title?: string } | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), YOUTUBE_TIMEOUT_MS);
-
   try {
-    const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        Accept: "text/html,application/xhtml+xml,*/*;q=0.8",
-      },
-    });
-
-    if (!res.ok) return null;
-    const html = await res.text();
-
-    // Extract page title (most reliable: <title> tag)
-    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-    const title = titleMatch?.[1]?.replace(/ - YouTube$/, "").trim();
-
-    // Find caption track baseUrl inside the player response JSON.
-    // YouTube encodes & as & in the inline JSON.
-    const captionMatch = html.match(/"captionTracks":\[.*?"baseUrl":"([^"]+)"/s);
-    if (!captionMatch) return null;
-
-    const captionUrl = captionMatch[1]
-      .replace(/\\u0026/g, "&")
-      .replace(/\\\//g, "/");
-
-    const captionRes = await fetch(captionUrl, {
-      signal: controller.signal,
-      headers: { "User-Agent": "Mozilla/5.0" },
-    });
-    if (!captionRes.ok) return null;
-
-    const xml = await captionRes.text();
-
-    // Parse <text> elements from the caption XML
-    const texts: string[] = [];
-    const pattern = /<text[^>]*>([^<]*)<\/text>/g;
-    let m: RegExpExecArray | null;
-    while ((m = pattern.exec(xml)) !== null) {
-      const segment = decodeHtml(m[1]).trim();
-      if (segment) texts.push(segment);
-    }
-
-    const text = texts.join(" ").replace(/\s+/g, " ").trim();
-    return text ? { text, title } : null;
+    const transcript = await Promise.race([
+      fetchTranscript(videoId),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Transcript timeout")), YOUTUBE_TIMEOUT_MS)),
+    ]);
+    const text = transcript.map((segment) => segment.text).join(" ").replace(/\s+/g, " ").trim();
+    return text ? { text } : null;
   } catch {
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -350,16 +310,13 @@ async function fetchYouTubeTranscript(
 // PDF text extraction (dynamic import avoids CJS/ESM type collision)
 // ---------------------------------------------------------------------------
 
-type PdfParseFn = (buf: Buffer, opts?: { max?: number }) => Promise<{ text: string }>;
-
 async function parsePdfContent(base64Content: string): Promise<string | null> {
   try {
     const buffer = Buffer.from(base64Content, "base64");
-    // pdf-parse is a CJS package; dynamic import handles the interop.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mod = await import("pdf-parse") as any;
-    const pdfParse = (mod.default ?? mod) as PdfParseFn;
-    const result = await pdfParse(buffer, { max: 0 });
+    const { PDFParse } = await import("pdf-parse");
+    const parser = new PDFParse({ data: buffer });
+    const result = await parser.getText();
+    await parser.destroy();
     const text = result.text?.replace(/\s+/g, " ").trim() ?? "";
     return text || null;
   } catch (error) {

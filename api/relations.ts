@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { requireUser } from "./auth.js";
 import {
   buildDeepSeekPrompt,
   normalizeDeepSeekRelations,
@@ -28,6 +29,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(405).json({ error: "Use POST" });
     return;
   }
+
+  if (!(await requireUser(req, res))) return;
 
   const body = parseBody(req.body);
   if (!body) {

@@ -5,12 +5,18 @@ import {
   type EntryDraft,
 } from "./extraction";
 import { loadMyContext, toCaptureMyContext } from "./myContext";
+import { supabase } from "../lib/supabaseClient";
 
 export type CaptureError = "no_transcript" | "parse_failed" | "file_too_large" | "network_error";
 
 export type CaptureResult =
   | { ok: true; draft: EntryDraft }
   | { ok: false; error: CaptureError };
+
+export async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  return data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {};
+}
 
 // ---------------------------------------------------------------------------
 // Unified capture entry point — used by both CaptureForm and Mobile
@@ -89,7 +95,7 @@ export async function getEntryDraft(input: CaptureInput): Promise<EntryDraft> {
   try {
     const response = await fetch("/api/extract", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
       body: JSON.stringify(payload),
     });
     if (!response.ok) return createFallbackDraft(payload);
@@ -108,7 +114,7 @@ async function postExtract(payload: Record<string, unknown>): Promise<CaptureRes
   try {
     const response = await fetch("/api/extract", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
       body: JSON.stringify(payload),
     });
 

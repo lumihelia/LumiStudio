@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { Entry } from "../data/types";
 import { useAppState } from "../state/useAppState";
 import { loadMyContext, toCaptureMyContext } from "../utils/myContext";
+import { authHeaders } from "../utils/clientCapture";
 import {
   buildHonestFallback,
   type RelationCard,
@@ -68,11 +69,11 @@ export function GravityPage() {
       myContext: toCaptureMyContext(loadMyContext()),
     };
 
-    fetch("/api/relations", {
+    void authHeaders().then((authorization) => fetch("/api/relations", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authorization },
       body: JSON.stringify(payload),
-    })
+    }))
       .then((response) => (response.ok ? response.json() : Promise.reject(response)))
       .then((result: { available: boolean; cards: RelationCard[] }) => {
         if (cancelled) return;
